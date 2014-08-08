@@ -31,7 +31,7 @@ class caldav_sync
 
     private $cal_id = null;
     private $ctag = null;
-    private $user = null;
+    private $username = null;
     private $pass = null;
     private $url = null;
 
@@ -52,10 +52,10 @@ class caldav_sync
         $this->url = $props["url"];
         
         $this->ctag = isset($props["tag"]) ? $props["tag"] : null;
-        $this->user = isset($props["user"]) ? $props["user"] : null;
+        $this->username = isset($props["username"]) ? $props["username"] : null;
         $this->pass = isset($props["pass"]) ? $props["pass"] : null;
         
-        $this->caldav = new caldav_client($this->url, $this->user, $this->pass);
+        $this->caldav = new caldav_client($this->url, $this->username, $this->pass);
     }
 
     /**
