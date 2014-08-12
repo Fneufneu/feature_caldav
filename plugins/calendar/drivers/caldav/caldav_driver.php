@@ -61,7 +61,7 @@ class caldav_driver extends database_driver
     private $sync_clients = array();
 
     // Min. time period to wait until sync check.
-    private $sync_period = '10 seconds';
+    private $sync_period = 10; // seconds
 
     /**
      * Default constructor
@@ -194,10 +194,10 @@ class caldav_driver extends database_driver
         // Atomic sql: Check for exceeded sync period and update last_change.
         $query = $this->rc->db->query(
             "UPDATE ".$this->db_caldav_props." ".
-            "SET last_change = now() ".
-            "WHERE obj_id = ? AND obj_type = ? ".
-            "AND last_change <= (now() - interval ?);",
-        $cal_id, self::OBJ_TYPE_VCAL, $this->sync_period);
+            "SET last_change = NOW() WHERE obj_id = ? AND obj_type = ? AND ". 
+            $this->unixtimestamp('last_change') ." + ? <= ".
+            $this->unixtimestamp('NOW()'),
+            $cal_id, self::OBJ_TYPE_VCAL, $this->sync_period);
 
         if($query->rowCount() > 0)
         {
@@ -684,6 +684,23 @@ class caldav_driver extends database_driver
         self::debug_log("Successfully synced calendar id \"$cal_id\".");
     }
 
+    /**
+     * Returns db-specific timestamp queries for epoch format
+     *
+     * @param str column name or valid timestamp (e.g. NOW())
+     * @return str db-specific timestamp query for epoch format
+     */
+    private function unixtimestamp($field)
+    {
+      $rcmail = rcmail::get_instance();
+    
+      switch ($rcmail->db->db_provider) {
+        case 'postgres':
+          return "EXTRACT (EPOCH FROM $field)";
+        default:
+          return "UNIX_TIMESTAMP($field)";
+      }
+    }
 
     /**
      * Synchronizes events and loads them.

@@ -43,7 +43,7 @@ BEGIN
 END;
 $$;
 
-CREATE TRIGGER caldav_update_timestamp
+CREATE TRIGGER update_timestamp
   BEFORE INSERT OR UPDATE
   ON caldav_props
   FOR EACH ROW
