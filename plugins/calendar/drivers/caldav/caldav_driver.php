@@ -166,6 +166,38 @@ class caldav_driver extends database_driver
     }
 
     /**
+     * Gets caldav properties by url.
+     *
+     * @param string $obj_url
+     * @param int One of CALDAV_OBJ_TYPE_CAL, CALDAV_OBJ_TYPE_EVENT or CALDAV_OBJ_TYPE_TODO.
+     * @param int $obj_user (optional) user id
+     * @return array List of caldav properties or false on error
+     */
+    private function _get_caldav_props_by_url($obj_url, $obj_type, $obj_user = null)
+    {
+        $user_q = isset($obj_user) ? " AND user_id = ?" : "";
+        $result = $this->rc->db->query(
+            "SELECT * FROM ".$this->db_calendars." c ".
+            "LEFT OUTER JOIN ".$this->db_caldav_props. " p ".
+            "ON (c.calendar_id = p.obj_id)".
+            " WHERE url LIKE ? AND obj_type = ?".$user_q,
+            $obj_url, $obj_type, $obj_user
+        );
+
+        if ($result && ($prop = $this->rc->db->fetch_assoc($result)) !== false) {
+            $password = isset($prop["pass"]) ? $prop["pass"] : null;
+            if ($password) {
+                $p = base64_decode($password);
+                $e = new Encryption(MCRYPT_BlOWFISH, MCRYPT_MODE_CBC);
+                $prop["pass"] = $e->decrypt($p, $this->crypt_key);
+            }            
+            return $prop;
+        }
+
+        return false;
+    }
+
+    /**
      * Removes caldav properties.
      *
      * @param int $obj_id
@@ -307,11 +339,34 @@ class caldav_driver extends database_driver
         $tokens = parse_url($props["url"]);
         $base_uri = $tokens['scheme']."://".$tokens['host'].($tokens['port'] ? ":".$tokens['port'] : null);
         $caldav_url = $props["url"];
-        $response = $caldav->prop_find($caldav_url, $current_user_principal, 0);
+        $response = $caldav->prop_find($caldav_url, array_merge($current_user_principal,$cal_attribs), 0);
         if (!$response) {
-            self::debug_log("Resource \"$caldav_url\" has no collections.");
+            self::debug_log("Resource \"$caldav_url\" has no collections, maybe an .ics file?");
+            array_push($calendars, array(
+//              'name' => $props['name'],
+                'name' => preg_replace('#\.ics$#', '', end(explode('/', $tokens['path']))),
+                'href' => $caldav_url,
+            ));
             return $calendars;
         }
+        else if (array_key_exists ('{DAV:}resourcetype', $response) &&
+            $response['{DAV:}resourcetype'] instanceof Sabre\DAV\Property\ResourceType &&
+            in_array('{urn:ietf:params:xml:ns:caldav}calendar',
+                     $response['{DAV:}resourcetype']->getValue())) {
+
+            $name = '';
+            if (array_key_exists ('{DAV:}displayname', $response)) {
+                $name = $response['{DAV:}displayname'];
+            }
+
+            array_push($calendars, array(
+                'name' => $name,
+                'href' => $caldav_url,
+            ));
+            return $calendars;
+            // directly return given url as it is a calendar
+        }
+        // probe further for principal url and user home set
         $caldav_url = $base_uri . $response[$current_user_principal[0]];
         $response = $caldav->prop_find($caldav_url, $calendar_home_set, 0);
         if (!$response) {
@@ -368,8 +423,7 @@ class caldav_driver extends database_driver
     }
 
     /**
-     * Add default (pre-installation provisioned) calendar. If calendars from 
-     * same url exist, insertion does not take place.  
+     * Add default (pre-installation provisioned) calendar.
      *
      * @param array $props
      *    caldav_url: Absolute URL to calendar server collection
@@ -381,17 +435,7 @@ class caldav_driver extends database_driver
      *    
      */
     public function insert_default_calendar($props) {
-        $found = FALSE;
-        foreach ($this->list_calendars() as $cal) {
-            $vcal_info = $this->_get_caldav_props($cal['id'], self::OBJ_TYPE_VCAL);
-            if ($vcal_info['url'] == self::_encode_url($props['caldav_url'])) {
-                $found = TRUE;
-            }
-        }
-        if (!$found) {
-            return $this->create_calendar($props);
-        } 
-        return TRUE;
+        return $this->create_calendar($props);
     }
 
     /**
@@ -470,6 +514,10 @@ class caldav_driver extends database_driver
             $result = true;
             foreach ($calendars as $calendar)
             {
+                // skip already existent calendars
+                if (is_array($this->_get_caldav_props_by_url($calendar['href'],
+                    self::OBJ_TYPE_VCAL, $this->rc->user->ID))) continue;
+
                 $props['url'] = self::_encode_url($calendar['href']);
                 $props['name'] = $calendar['name'];
                 if (($obj_id = parent::create_calendar($props)) !== false) {
@@ -478,14 +526,9 @@ class caldav_driver extends database_driver
                 }
             }
         }
-        else
-        {
-            // Fallback: Assume given URL as resource to a calendar.
-            if (($obj_id = parent::create_calendar($props)) !== false) {
-                $result = $this->_set_caldav_props($obj_id, self::OBJ_TYPE_VCAL, $props);
-                array_push($cal_ids, $obj_id);
-            }
-        }
+
+        // return if no new calendars where created
+        if (empty($cal_ids)) return $result;
 
         // Re-read calendars to internal buffer.
         $this->_read_calendars();
