@@ -168,19 +168,48 @@ class libvcalendar_test extends PHPUnit_Framework_TestCase
     }
 
     /**
-     * @depends test_import
+     * 
      */
-    function test_apple_alarms()
+    function test_alarms()
     {
         $ical = new libvcalendar();
-        $events = $ical->import_from_file(__DIR__ . '/resources/apple-alarms.ics', 'UTF-8');
+        $events = $ical->import_from_file(__DIR__ . '/resources/recurring.ics', 'UTF-8');
         $event = $events[0];
 
-        // alarms
-        $this->assertEquals('-45M:AUDIO', $event['alarms'], "Relative alarm string");
+        $this->assertEquals('-12H:DISPLAY', $event['alarms'], "Serialized alarms string");
         $alarm = libcalendaring::parse_alaram_value($event['alarms']);
-        $this->assertEquals('45', $alarm[0], "Alarm value");
-        $this->assertEquals('-M', $alarm[1], "Alarm unit");
+        $this->assertEquals('12', $alarm[0], "Alarm value");
+        $this->assertEquals('-H', $alarm[1], "Alarm unit");
+
+        $this->assertEquals('DISPLAY', $event['valarms'][0]['action'],  "Full alarm item (action)");
+        $this->assertEquals('-PT12H',   $event['valarms'][0]['trigger'], "Full alarm item (trigger)");
+
+        // alarm trigger with 0 values
+        $events = $ical->import_from_file(__DIR__ . '/resources/alarms.ics', 'UTF-8');
+        $event = $events[0];
+
+        $this->assertEquals('-30M:DISPLAY', $event['alarms'], "Stripped alarm string");
+        $alarm = libcalendaring::parse_alaram_value($event['alarms']);
+        $this->assertEquals('-30M', $alarm[2], "Alarm string");
+
+        $this->assertEquals('DISPLAY', $event['valarms'][0]['action'],  "First alarm action");
+        $this->assertEquals('This is the first event reminder', $event['valarms'][0]['description'],  "First alarm text");
+
+        $this->assertEquals(2, count($event['valarms']), "List all VALARM blocks");
+
+        $valarm = $event['valarms'][1];
+        $this->assertEquals(1, count($valarm['attendees']), "Email alarm attendees");
+        $this->assertEquals('EMAIL', $valarm['action'],  "Second alarm item (action)");
+        $this->assertEquals('-P1D',  $valarm['trigger'], "Second alarm item (trigger)");
+        $this->assertEquals('This is the reminder message',  $valarm['summary'], "Email alarm text");
+
+        // test alarms export
+        $ics = $ical->export(array($event));
+        $this->assertContains('ACTION:DISPLAY',   $ics, "Display alarm block");
+        $this->assertContains('ACTION:EMAIL',     $ics, "Email alarm block");
+        $this->assertContains('DESCRIPTION:This is the first event reminder',    $ics, "Alarm description");
+        $this->assertContains('SUMMARY:This is the reminder message',            $ics, "Email alarm summary");
+        $this->assertContains('ATTENDEE:mailto:reminder-recipient@example.org',  $ics, "Email alarm recipient");
     }
 
     /**
@@ -200,6 +229,26 @@ class libvcalendar_test extends PHPUnit_Framework_TestCase
     }
 
     /**
+     * @depends test_import
+     */
+    function test_apple_alarms()
+    {
+        $ical = new libvcalendar();
+        $events = $ical->import_from_file(__DIR__ . '/resources/apple-alarms.ics', 'UTF-8');
+        $event = $events[0];
+
+        // alarms
+        $this->assertEquals('-45M:AUDIO', $event['alarms'], "Relative alarm string");
+        $alarm = libcalendaring::parse_alaram_value($event['alarms']);
+        $this->assertEquals('45', $alarm[0], "Alarm value");
+        $this->assertEquals('-M', $alarm[1], "Alarm unit");
+
+        $this->assertEquals(1, count($event['valarms']), "Ignore invalid alarm blocks");
+        $this->assertEquals('AUDIO', $event['valarms'][0]['action'],  "Full alarm item (action)");
+        $this->assertEquals('-PT45M', $event['valarms'][0]['trigger'], "Full alarm item (trigger)");
+    }
+
+    /**
      * 
      */
     function test_escaped_values()
@@ -210,6 +259,10 @@ class libvcalendar_test extends PHPUnit_Framework_TestCase
 
         $this->assertEquals("House, Street, Zip Place", $event['location'], "Decode escaped commas in location value");
         $this->assertEquals("Me, meets Them\nThem, meet Me", $event['description'], "Decode description value");
+        $this->assertEquals("Kolab, Thomas", $event['attendees'][3]['name'], "Unescaped");
+
+        $ics = $ical->export($events);
+        $this->assertContains('ATTENDEE;CN="Kolab, Thomas";PARTSTAT=', $ics, "Quoted attendee parameters");
     }
 
     /**
@@ -262,13 +315,16 @@ class libvcalendar_test extends PHPUnit_Framework_TestCase
         $this->assertInstanceOf('DateTime', $task['start'],   "'start' property is DateTime object");
         $this->assertInstanceOf('DateTime', $task['due'],     "'due' property is DateTime object");
         $this->assertEquals('-1D:DISPLAY',  $task['alarms'],  "Taks alarm value");
+        $this->assertEquals('IN-PROCESS',   $task['status'],  "Task status property");
         $this->assertEquals(1, count($task['x-custom']),      "Custom properties");
+        $this->assertEquals(4, count($task['categories']));
+        $this->assertEquals('1234567890-12345678-PARENT', $task['parent_id'], "Parent Relation");
     }
 
     /**
      * Test for iCal export from internal hash array representation
      *
-     * @depends test_extended
+     * 
      */
     function test_export()
     {
@@ -284,12 +340,20 @@ class libvcalendar_test extends PHPUnit_Framework_TestCase
         $event['attachments'][0]['id'] = '1';
         $event['description'] = '*Exported by libvcalendar*';
 
-        $ics = $ical->export(array($event), 'REQUEST', false, array($this, 'get_attachment_data'));
+        $event['start']->setTimezone(new DateTimezone('Europe/Berlin'));
+        $event['end']->setTimezone(new DateTimezone('Europe/Berlin'));
+
+        $ics = $ical->export(array($event), 'REQUEST', false, array($this, 'get_attachment_data'), true);
 
         $this->assertContains('BEGIN:VCALENDAR',    $ics, "VCALENDAR encapsulation BEGIN");
-        $this->assertContains('METHOD:REQUEST',     $ics, "iTip method");
-        $this->assertContains('BEGIN:VEVENT',       $ics, "VEVENT encapsulation BEGIN");
 
+        $this->assertContains('BEGIN:VTIMEZONE', $ics, "VTIMEZONE encapsulation BEGIN");
+        $this->assertContains('TZID:Europe/Berlin', $ics, "Timezone ID");
+        $this->assertContains('TZOFFSETFROM:+0100', $ics, "Timzone transition FROM");
+        $this->assertContains('TZOFFSETTO:+0200', $ics, "Timzone transition TO");
+        $this->assertContains('END:VTIMEZONE', $ics, "VTIMEZONE encapsulation END");
+
+        $this->assertContains('BEGIN:VEVENT',       $ics, "VEVENT encapsulation BEGIN");
         $this->assertContains('UID:ac6b0aee-2519-4e5c-9a25-48c57064c9f0', $ics, "Event UID");
         $this->assertContains('SEQUENCE:' . $event['sequence'],           $ics, "Export Sequence number");
         $this->assertContains('CLASS:CONFIDENTIAL',                       $ics, "Sensitivity => Class");
@@ -412,15 +476,54 @@ class libvcalendar_test extends PHPUnit_Framework_TestCase
 
     function test_datetime()
     {
-        $localtime = libvcalendar::datetime_prop('DTSTART', new DateTime('2013-09-01 12:00:00', new DateTimeZone('Europe/Berlin')));
-        $localdate = libvcalendar::datetime_prop('DTSTART', new DateTime('2013-09-01', new DateTimeZone('Europe/Berlin')), false, true);
-        $utctime   = libvcalendar::datetime_prop('DTSTART', new DateTime('2013-09-01 12:00:00', new DateTimeZone('UTC')));
-        $asutctime = libvcalendar::datetime_prop('DTSTART', new DateTime('2013-09-01 12:00:00', new DateTimeZone('Europe/Berlin')), true);
+        $ical = new libvcalendar();
+        $localtime = $ical->datetime_prop('DTSTART', new DateTime('2013-09-01 12:00:00', new DateTimeZone('Europe/Berlin')));
+        $localdate = $ical->datetime_prop('DTSTART', new DateTime('2013-09-01', new DateTimeZone('Europe/Berlin')), false, true);
+        $utctime   = $ical->datetime_prop('DTSTART', new DateTime('2013-09-01 12:00:00', new DateTimeZone('UTC')));
+        $asutctime = $ical->datetime_prop('DTSTART', new DateTime('2013-09-01 12:00:00', new DateTimeZone('Europe/Berlin')), true);
 
         $this->assertContains('TZID=Europe/Berlin', $localtime->serialize());
         $this->assertContains('VALUE=DATE', $localdate->serialize());
         $this->assertContains('20130901T120000Z', $utctime->serialize());
         $this->assertContains('20130901T100000Z', $asutctime->serialize());
+    }
+
+    function test_get_vtimezone()
+    {
+        $vtz = libvcalendar::get_vtimezone('Europe/Berlin', strtotime('2014-08-22T15:00:00+02:00'));
+        $this->assertInstanceOf('\Sabre\VObject\Component', $vtz, "VTIMEZONE is a Component object");
+        $this->assertEquals('Europe/Berlin', $vtz->TZID);
+        $this->assertEquals('4', $vtz->{'X-MICROSOFT-CDO-TZID'});
+
+        // check for transition to daylight saving time which is BEFORE the given date
+        $dst = reset($vtz->select('DAYLIGHT'));
+        $this->assertEquals('DAYLIGHT', $dst->name);
+        $this->assertEquals('20140330T010000', $dst->DTSTART);
+        $this->assertEquals('+0100', $dst->TZOFFSETFROM);
+        $this->assertEquals('+0200', $dst->TZOFFSETTO);
+        $this->assertEquals('CEST', $dst->TZNAME);
+
+        // check (last) transition to standard time which is AFTER the given date
+        $std = end($vtz->select('STANDARD'));
+        $this->assertEquals('STANDARD', $std->name);
+        $this->assertEquals('20141026T010000', $std->DTSTART);
+        $this->assertEquals('+0200', $std->TZOFFSETFROM);
+        $this->assertEquals('+0100', $std->TZOFFSETTO);
+        $this->assertEquals('CET', $std->TZNAME);
+
+        // unknown timezone
+        $vtz = libvcalendar::get_vtimezone('America/Foo Bar');
+        $this->assertEquals(false, $vtz);
+
+        // invalid input data
+        $vtz = libvcalendar::get_vtimezone(new DateTime());
+        $this->assertEquals(false, $vtz);
+
+        // DateTimezone as input data
+        $vtz = libvcalendar::get_vtimezone(new DateTimezone('Pacific/Chatham'));
+        $this->assertInstanceOf('\Sabre\VObject\Component', $vtz);
+        $this->assertContains('TZOFFSETFROM:+1245', $vtz->serialize());
+        $this->assertContains('TZOFFSETTO:+1345', $vtz->serialize());
     }
 
     function get_attachment_data($id, $event)

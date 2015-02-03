@@ -33,7 +33,7 @@ class kolab_driver extends calendar_driver
   public $freebusy = true;
   public $attachments = true;
   public $undelete = true;
-  public $alarm_types = array('DISPLAY');
+  public $alarm_types = array('DISPLAY','AUDIO');
   public $categoriesimmutable = true;
 
   private $rc;
@@ -558,7 +558,7 @@ class kolab_driver extends calendar_driver
         return false;
 
       if ($event['_savemode'] != 'new') {
-        if (!$fromcalendar->storage->move($event['id'], $storage->get_realname()))
+        if (!$fromcalendar->storage->move($event['id'], $storage->storage))
           return false;
 
         $fromcalendar = $storage;

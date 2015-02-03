@@ -313,10 +313,22 @@ class libcalendaring extends rcube_plugin
      */
     public static function parse_alaram_value($val)
     {
-        if ($val[0] == '@')
+        if ($val[0] == '@') {
             return array(substr($val, 1));
-        else if (preg_match('/([+-])P?T?(\d+)([HMSDW])/', $val, $m))
-            return array($m[2], $m[1].$m[3]);
+        }
+        else if (preg_match('/([+-]?)P?(T?\d+[HMSDW])+/', $val, $m) && preg_match_all('/T?(\d+)([HMSDW])/', $val, $m2, PREG_SET_ORDER)) {
+            if ($m[1] == '')
+                $m[1] = '+';
+            foreach ($m2 as $seg) {
+                $prefix = $seg[2] == 'D' || $seg[2] == 'W' ? 'P' : 'PT';
+                if ($seg[1] > 0) {  // ignore zero values
+                    return array($seg[1], $m[1].$seg[2], $m[1].$seg[1].$seg[2], $m[1].$prefix.$seg[1].$seg[2]);
+                }
+            }
+
+            // return zero value nevertheless
+            return array($seg[1], $m[1].$seg[2], $m[1].$seg[1].$seg[2], $m[1].$prefix.$seg[1].$seg[2]);
+        }
 
         return false;
     }
@@ -398,7 +410,26 @@ class libcalendaring extends rcube_plugin
             }
             $offset = $notify[0] * $mult;
             $refdate = $mult > 0 ? $rec['end'] : $rec['start'];
-            $notify_at = $refdate->format('U') + $offset;
+
+            if ($refdate && is_a($refdate, 'DateTime')) {
+                $notify_at = $refdate->format('U') + $offset;
+            }
+            else {
+                rcube::raise_error(array(
+                    'code' => 600,
+                    'type' => 'php',
+                    'file' => __FILE__,
+                    'line' => __LINE__,
+                    'message' => sprintf("Invalid reference date for alarm: %s; type=%s; start=%s; end=%s; uid=%s",
+                         $trigger,
+                         $type,
+                         var_export($rec['start'], true),
+                         var_export($rec['end'], true),
+                         $rec['uid']
+                    )),
+                    true, false);
+                return null;
+            }
         }
         else {  // absolute timestamp
             $notify_at = $notify[0];

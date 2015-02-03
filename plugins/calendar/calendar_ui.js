@@ -1630,6 +1630,17 @@ function rcube_calendar_ui(settings)
         event.temp = true;
         event.className = 'fc-event-cal-'+data.calendar+' fc-event-temp';
         fc.fullCalendar(data.id ? 'updateEvent' : 'renderEvent', event);
+
+        // mark all recurring instances as temp
+        if (event.recurrence || event.recurrence_id) {
+          var base_id = event.recurrence_id ? event.recurrence_id.replace(/-\d+$/, '') : event.id;
+          $.each(fc.fullCalendar('clientEvents', function(e){ return e.id == base_id || e.recurrence_id == base_id; }), function(i,ev) {
+            ev.temp = true;
+            ev.editable = false;
+            event.className += ' fc-event-temp';
+            fc.fullCalendar('updateEvent', ev);
+          });
+        }
       }
     };
 
@@ -2714,8 +2725,8 @@ function rcube_calendar_ui(settings)
       minical = $('#datepicker').datepicker($.extend(datepicker_settings, {
         inline: true,
         showWeek: true,
-        changeMonth: false, // maybe enable?
-        changeYear: false,  // maybe enable?
+        changeMonth: true,
+        changeYear: true,
         onSelect: function(dateText, inst) {
           ignore_click = true;
           var d = minical.datepicker('getDate'); //parse_datetime('0:0', dateText);
@@ -2740,12 +2751,16 @@ function rcube_calendar_ui(settings)
               base_date.setYear(minical.data('year'));
             base_date.setHours(12);
             base_date.setDate(base_date.getDate() - ((base_date.getDay() + 6) % 7) + datepicker_settings.firstDay);
-            var day_off = base_date.getDay() - datepicker_settings.firstDay;
-            var base_kw = iso8601Week(base_date);
-            var target_kw = parseInt(cell.html());
-            var diff = (target_kw - base_kw) * 7 * DAY_MS;
+            var base_kw = iso8601Week(base_date),
+              target_kw = parseInt(cell.html()),
+              wdiff = target_kw - base_kw;
+            if (wdiff > 10)  // year jump
+              base_date.setYear(base_date.getFullYear() - 1);
+            else if (wdiff < -10)
+              base_date.setYear(base_date.getFullYear() + 1);
             // select monday of the chosen calendar week
-            var date = new Date(base_date.getTime() - day_off * DAY_MS + diff);
+            var day_off = base_date.getDay() - datepicker_settings.firstDay,
+              date = new Date(base_date.getTime() - day_off * DAY_MS + wdiff * 7 * DAY_MS);
             fc.fullCalendar('gotoDate', date).fullCalendar('setDate', date).fullCalendar('changeView', 'agendaWeek');
             minical.datepicker('setDate', date);
           }
@@ -2765,6 +2780,8 @@ function rcube_calendar_ui(settings)
               $('#edit-attendees-form .attendees-invitebox').show();
             }
           }
+          // reset autocompletion on tab change (#3389)
+          rcmail.ksearch_blur();
         }
       });
       $('#edit-enddate').datepicker(datepicker_settings);

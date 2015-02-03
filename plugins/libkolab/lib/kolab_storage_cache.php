@@ -359,11 +359,12 @@ class kolab_storage_cache
      *
      * @param string Entry's IMAP message UID
      * @param string Entry's Object UID
-     * @param string Target IMAP folder to move it to
+     * @param object kolab_storage_folder Target storage folder instance
      */
-    public function move($msguid, $uid, $target_folder)
+    public function move($msguid, $uid, $target)
     {
-        $target = kolab_storage::get_folder($target_folder);
+        // clear cached uid mapping and force new lookup
+        unset($target->cache->uid2msg[$uid]);
 
         // resolve new message UID in target folder
         if ($new_msguid = $target->cache->uid2msguid($uid)) {
@@ -462,7 +463,7 @@ class kolab_storage_cache
                 else if ($fetchall && ($object = $this->_unserialize($sql_arr))) {
                     $result[] = $object;
                 }
-                else {
+                else if (!$fetchall) {
                     // only add msguid to dataset index
                     $result[] = $sql_arr;
                 }
@@ -754,12 +755,15 @@ class kolab_storage_cache
             }
         }
 
+        $object_type = $sql_arr['type'] ?: $this->folder->type;
+        $format_type = $this->folder->type == 'configuration' ? 'configuration' : $object_type;
+
         // add meta data
-        $object['_type']      = $sql_arr['type'] ?: $this->folder->type;
+        $object['_type']      = $object_type;
         $object['_msguid']    = $sql_arr['msguid'];
         $object['_mailbox']   = $this->folder->name;
         $object['_size']      = strlen($sql_arr['xml']);
-        $object['_formatobj'] = kolab_format::factory($object['_type'], 3.0, $sql_arr['xml']);
+        $object['_formatobj'] = kolab_format::factory($format_type, 3.0, $sql_arr['xml']);
 
         return $object;
     }
@@ -909,7 +913,7 @@ class kolab_storage_cache
             $index = $this->imap->search_once($this->folder->name, ($deleted ? '' : 'UNDELETED ') .
                 'HEADER SUBJECT ' . rcube_imap_generic::escape($uid));
             $results = $index->get();
-            $this->uid2msg[$uid] = $results[0];
+            $this->uid2msg[$uid] = end($results);
         }
 
         return $this->uid2msg[$uid];

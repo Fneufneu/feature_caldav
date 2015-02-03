@@ -75,7 +75,7 @@ abstract class tasklist_driver
      *  showalarms: True if alarms are enabled
      * @return mixed ID of the new list on success, False on error
      */
-    abstract function create_list($prop);
+    abstract function create_list(&$prop);
 
     /**
      * Update properties of an existing tasklist
@@ -87,7 +87,7 @@ abstract class tasklist_driver
      *  showalarms: True if alarms are enabled (if supported)
      * @return boolean True on success, Fales on failure
      */
-    abstract function edit_list($prop);
+    abstract function edit_list(&$prop);
 
     /**
      * Set active/subscribed state of a list
@@ -260,10 +260,12 @@ abstract class tasklist_driver
      * Build the edit/create form for lists.
      * This gives the drivers the opportunity to add more list properties
      *
-     * @param array List with form fields to be rendered
+     * @param string  The action called this form
+     * @param array   Tasklist properties
+     * @param array   List with form fields to be rendered
      * @return string HTML content of the form
      */
-    public function tasklist_edit_form($formfields)
+    public function tasklist_edit_form($action, $list, $formfields)
     {
         $html = '';
         foreach ($formfields as $field) {

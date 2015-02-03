@@ -28,7 +28,7 @@ class tasklist_kolab_driver extends tasklist_driver
     public $alarms = false;
     public $attachments = true;
     public $undelete = false; // task undelete action
-    public $alarm_types = array('DISPLAY');
+    public $alarm_types = array('DISPLAY','AUDIO');
 
     private $rc;
     private $plugin;
@@ -50,6 +50,8 @@ class tasklist_kolab_driver extends tasklist_driver
         if (kolab_storage::$version == '2.0') {
             $this->alarm_absolute = false;
         }
+
+        $this->plugin->register_action('folder-acl', array($this, 'folder_acl'));
     }
 
     /**
@@ -154,7 +156,8 @@ class tasklist_kolab_driver extends tasklist_driver
     {
         // attempt to create a default list for this user
         if (empty($this->lists)) {
-            if ($this->create_list(array('name' => 'Tasks', 'color' => '0000CC', 'default' => true)))
+            $prop = array('name' => 'Tasks', 'color' => '0000CC', 'default' => true);
+            if ($this->create_list($prop))
                 $this->_read_lists(true);
         }
 
@@ -170,7 +173,7 @@ class tasklist_kolab_driver extends tasklist_driver
      *  showalarms: True if alarms are enabled
      * @return mixed ID of the new list on success, False on error
      */
-    public function create_list($prop)
+    public function create_list(&$prop)
     {
         $prop['type'] = 'task' . ($prop['default'] ? '.default' : '');
         $prop['active'] = true; // activate folder by default
@@ -193,6 +196,10 @@ class tasklist_kolab_driver extends tasklist_driver
         if ($prefs['kolab_tasklists'][$id])
             $this->rc->user->save_prefs($prefs);
 
+        // force page reload to properly render folder hierarchy
+        if (!empty($prop['parent']))
+            $prop['_reload'] = true;
+
         return $id;
     }
 
@@ -206,7 +213,7 @@ class tasklist_kolab_driver extends tasklist_driver
      *  showalarms: True if alarms are enabled (if supported)
      * @return boolean True on success, Fales on failure
      */
-    public function edit_list($prop)
+    public function edit_list(&$prop)
     {
         if ($prop['id'] && ($folder = $this->folders[$prop['id']])) {
             $prop['oldname'] = $folder->name;
@@ -230,6 +237,10 @@ class tasklist_kolab_driver extends tasklist_driver
 
             if ($prefs['kolab_tasklists'][$id])
                 $this->rc->user->save_prefs($prefs);
+
+            // force page reload if folder name/hierarchy changed
+            if ($newfolder != $prop['oldname'])
+                $prop['_reload'] = true;
 
             return $id;
         }
@@ -475,7 +486,7 @@ class tasklist_kolab_driver extends tasklist_driver
 
             $folder = $this->folders[$lid];
             foreach ($folder->select($query) as $record) {
-                if (!$record['alarms'])  // don't trust query :-)
+                if (!$record['alarms'] || $record['status'] == 'COMPLETED' || $record['complete'] == 100)  // don't trust query :-)
                     continue;
 
                 $task = $this->_to_rcube_task($record);
@@ -721,7 +732,7 @@ class tasklist_kolab_driver extends tasklist_driver
 
         // moved from another folder
         if ($task['_fromlist'] && ($fromfolder = $this->folders[$task['_fromlist']])) {
-            if (!$fromfolder->move($task['id'], $folder->name))
+            if (!$fromfolder->move($task['id'], $folder))
                 return false;
 
             unset($task['_fromlist']);
@@ -774,7 +785,7 @@ class tasklist_kolab_driver extends tasklist_driver
 
         // execute move command
         if ($task['_fromlist'] && ($fromfolder = $this->folders[$task['_fromlist']])) {
-            return $fromfolder->move($task['id'], $folder->name);
+            return $fromfolder->move($task['id'], $folder);
         }
 
         return false;
@@ -862,21 +873,132 @@ class tasklist_kolab_driver extends tasklist_driver
     /**
      * 
      */
-    public function tasklist_edit_form($fieldprop)
+    public function tasklist_edit_form($action, $list, $fieldprop)
     {
-        $select = kolab_storage::folder_selector('task', array('name' => 'parent', 'id' => 'taskedit-parentfolder'), null);
-        $fieldprop['parent'] = array(
-            'id' => 'taskedit-parentfolder',
-            'label' => $this->plugin->gettext('parentfolder'),
-            'value' => $select->show(''),
-        );
-
-        $formfields = array();
-        foreach (array('name','parent','showalarms') as $f) {
-            $formfields[$f] = $fieldprop[$f];
+        if ($list['id'] && ($list = $this->lists[$list['id']])) {
+            $folder_name = $this->folders[$list['id']]->name; // UTF7
+        }
+        else {
+            $folder_name = '';
         }
 
-        return parent::tasklist_edit_form($formfields);
+        $storage = $this->rc->get_storage();
+        $delim   = $storage->get_hierarchy_delimiter();
+        $form    = array();
+
+        if (strlen($folder_name)) {
+            $path_imap = explode($delim, $folder_name);
+            array_pop($path_imap);  // pop off name part
+            $path_imap = implode($path_imap, $delim);
+
+            $options = $storage->folder_info($folder_name);
+        }
+        else {
+            $path_imap = '';
+        }
+
+        $hidden_fields[] = array('name' => 'oldname', 'value' => $folder_name);
+
+        // folder name (default field)
+        $input_name = new html_inputfield(array('name' => 'name', 'id' => 'taskedit-tasklistame', 'size' => 20));
+        $fieldprop['name']['value'] = $input_name->show($list['editname'], array('disabled' => ($options['norename'] || $options['protected'])));
+
+        // prevent user from moving folder
+        if (!empty($options) && ($options['norename'] || $options['protected'])) {
+            $hidden_fields[] = array('name' => 'parent', 'value' => $path_imap);
+        }
+        else {
+            $select = kolab_storage::folder_selector('task', array('name' => 'parent', 'id' => 'taskedit-parentfolder'), $folder_name);
+            $fieldprop['parent'] = array(
+                'id'    => 'taskedit-parentfolder',
+                'label' => $this->plugin->gettext('parentfolder'),
+                'value' => $select->show($path_imap),
+            );
+        }
+
+        // General tab
+        $form['properties'] = array(
+            'name' => $this->rc->gettext('properties'),
+            'fields' => array(),
+        );
+
+        foreach (array('name','parent','showalarms') as $f) {
+            $form['properties']['fields'][$f] = $fieldprop[$f];
+        }
+
+        // add folder ACL tab
+        if ($action != 'form-new') {
+            $form['sharing'] = array(
+                'name'    => Q($this->plugin->gettext('tabsharing')),
+                'content' => html::tag('iframe', array(
+                    'src' => $this->rc->url(array('_action' => 'folder-acl', '_folder' => $folder_name, 'framed' => 1)),
+                    'width' => '100%',
+                    'height' => 280,
+                    'border' => 0,
+                    'style' => 'border:0'),
+                '')
+            );
+        }
+
+        $form_html = '';
+        if (is_array($hidden_fields)) {
+            foreach ($hidden_fields as $field) {
+                $hiddenfield = new html_hiddenfield($field);
+                $form_html .= $hiddenfield->show() . "\n";
+            }
+        }
+
+        // create form output
+        foreach ($form as $tab) {
+            if (is_array($tab['fields']) && empty($tab['content'])) {
+                $table = new html_table(array('cols' => 2));
+                foreach ($tab['fields'] as $col => $colprop) {
+                    $colprop['id'] = '_'.$col;
+                    $label = !empty($colprop['label']) ? $colprop['label'] : $this->plugin->gettext($col);
+
+                    $table->add('title', html::label($colprop['id'], Q($label)));
+                    $table->add(null, $colprop['value']);
+                }
+                $content = $table->show();
+            }
+            else {
+                $content = $tab['content'];
+            }
+
+            if (!empty($content)) {
+                $form_html .= html::tag('fieldset', null, html::tag('legend', null, Q($tab['name'])) . $content) . "\n";
+            }
+        }
+
+        return $form_html;
     }
 
+    /**
+     * Handler to render ACL form for a notes folder
+     */
+    public function folder_acl()
+    {
+        $this->plugin->require_plugin('acl');
+        $this->rc->output->add_handler('folderacl', array($this, 'folder_acl_form'));
+        $this->rc->output->send('tasklist.kolabacl');
+    }
+
+    /**
+     * Handler for ACL form template object
+     */
+    public function folder_acl_form()
+    {
+        $folder = rcube_utils::get_input_value('_folder', RCUBE_INPUT_GPC);
+
+        if (strlen($folder)) {
+            $storage = $this->rc->get_storage();
+            $options = $storage->folder_info($folder);
+
+            // get sharing UI from acl plugin
+            $acl = $this->rc->plugins->exec_hook('folder_form',
+                array('form' => array(), 'options' => $options, 'name' => $folder));
+        }
+
+        return $acl['form']['sharing']['content'] ?: html::div('hint', $this->plugin->gettext('aclnorights'));
+    }
 }
