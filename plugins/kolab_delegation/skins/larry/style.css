@@ -1,21 +1,17 @@
 /* Stylesheets for the Kolab Delegation configuration UI */
 
-#settings-sections #settingstabplugindelegation a {
+#settings-sections .listitem.delegation a {
   background: url(delegation.png) 6px 1px no-repeat;
 }
 
-#settings-sections #settingstabplugindelegation.selected a {
+#settings-sections .listitem.delegation.selected a {
   background-position: 6px -23px;
-}
-
-#sectionslist {
-	width: 220px;
 }
 
 #prefs-box {
 	position: absolute;
 	top: 0;
-	left: 232px;
+	left: 272px;
 	right: 0;
 	bottom: 0;
 }
@@ -59,23 +55,19 @@ div.foldersblock h3.note {
 	background-position: 4px -78px;
 }
 
-#delegatefolders thead td {
+#delegatefolders thead th {
 	color: #69939e;
 	font-weight: bold;
 	padding: 2px;
-    padding-top: 4px;
+	padding-top: 4px;
 	min-width: 2em;
 	background-color: #d6eaf3;
 	border-bottom: 2px solid #fff;
 	text-align: center;
 }
 
-#delegatefolders thead td.foldername {
+#delegatefolders thead th.foldername {
   text-align: left;
-}
-
-#delegatefolders thead td img {
-	cursor: pointer;
 }
 
 #delegatefolders tbody td {
@@ -113,4 +105,18 @@ div.foldersblock h3.note {
 
 #delegate-delete-dialog input {
 	vertical-align: middle;
+}
+
+.foldersblock th.read {
+  background: url(read.png) center no-repeat;
+  width: 18px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.foldersblock th.write {
+  background: url(write.png) center no-repeat;
+  width: 18px;
+  height: 20px;
+  cursor: pointer;
 }

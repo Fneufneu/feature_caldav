@@ -1,10 +1,18 @@
 <?php
 
+/**
+ * Localizations for the Kolab Folders plugin
+ *
+ * Copyright (C) 2014, Kolab Systems AG
+ *
+ * For translation see https://www.transifex.com/projects/p/kolab/resource/kolab_folders/
+ */
+
 $labels = array();
 
 $labels['folderctype'] = 'Content type';
 $labels['foldertypemail'] = 'Mail';
-$labels['foldertypeevent'] = 'Calendar'; // Events?
+$labels['foldertypeevent'] = 'Calendar';
 $labels['foldertypejournal'] = 'Journal';
 $labels['foldertypetask'] = 'Tasks';
 $labels['foldertypenote'] = 'Notes';
@@ -20,6 +28,7 @@ $labels['sentitems'] = 'Sent';
 $labels['outbox'] = 'Outbox';
 $labels['wastebasket'] = 'Trash';
 $labels['junkemail'] = 'Junk';
+$labels['confidential'] = 'Confidential';
 
 $messages['defaultfolderexists'] = 'There is already default folder of specified type';
 

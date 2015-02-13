@@ -1,9 +1,11 @@
 /**
  * Client scripts for the Kolab Delegation configuration utitlity
  *
- * @version @package_version@
  * @author Aleksander Machniak <machniak@kolabsys.com>
  * @author Thomas Bruederli <bruederli@kolabsys.com>
+ *
+ * @licstart  The following is the entire license notice for the
+ * JavaScript code in this file.
  *
  * Copyright (C) 2011-2012, Kolab Systems AG <contact@kolabsys.com>
  *
@@ -19,6 +21,9 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * @licend  The above is the entire license notice
+ * for the JavaScript code in this file.
  */
 
 window.rcmail && rcmail.addEventListener('init', function(evt) {
@@ -38,21 +43,14 @@ window.rcmail && rcmail.addEventListener('init', function(evt) {
   else if (rcmail.env.task != 'settings')
     return;
 
-  // add Delegation section to the list
-  var tab = $('<span>').attr('id', 'settingstabplugindelegation').addClass('tablink'),
-    button = $('<a>').attr('href', rcmail.env.comm_path+'&_action=plugin.delegation')
-      .html(rcmail.gettext('tabtitle', 'kolab_delegation'))
-      .appendTo(tab);
-  rcmail.add_element(tab, 'tabs');
-
   if (/^plugin.delegation/.test(rcmail.env.action)) {
     rcmail.addEventListener('plugin.delegate_save_complete', function(e) { rcmail.delegate_save_complete(e); });
 
     if (rcmail.gui_objects.delegatelist) {
       rcmail.delegatelist = new rcube_list_widget(rcmail.gui_objects.delegatelist,
         { multiselect:true, draggable:false, keyboard:true });
-      rcmail.delegatelist.addEventListener('select', function(o) { rcmail.select_delegate(o); });
-      rcmail.delegatelist.init();
+      rcmail.delegatelist.addEventListener('select', function(o) { rcmail.select_delegate(o); })
+        .init();
 
       rcmail.enable_command('delegate-add', true);
     }
@@ -79,14 +77,16 @@ window.rcmail && rcmail.addEventListener('init', function(evt) {
           $('input.write', this.parentNode.parentNode).prop('checked', false);
       });
 
-      $('.foldersblock thead td img').click(function(e) {
-        var $this = $(this),
-          classname = $this.parent().get(0).className,
-          list = $this.closest('table').find('input.'+classname),
+      var fn = function(elem) {
+        var classname = elem.className,
+          list = $(elem).closest('table').find('input.' + classname),
           check = list.not(':checked').length > 0;
 
         list.prop('checked', check).change();
-      });
+      };
+
+      $('th.read,th.write').click(function() { fn(this); })
+        .keydown(function(e) { if (e.which == 13 || e.which == 32) fn(this); });
     }
   }
 });

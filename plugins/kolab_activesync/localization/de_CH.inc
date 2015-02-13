@@ -1,31 +1,33 @@
 <?php
-
-$labels = array();
 $labels['tabtitle'] = 'Activesync';
+$labels['activesynctitle'] = 'Manage Activesync devices';
 $labels['devices'] = 'Geräte';
 $labels['devicealias'] = 'Gerätename';
-$labels['syncmode'] = 'Modus';
-$labels['modeauto'] = 'Automatisch';
-$labels['modeflat'] = 'Flache Struktur erzwingen';
-$labels['modefolder'] = 'Ordnerstruktur erzwingen';
 $labels['synchronize'] = 'Synchronisieren';
 $labels['withalarms'] = 'Mit Erinnerungen';
 $labels['syncsettings'] = 'Synchronisationseinstellungen';
-$labels['deviceconfig'] = 'Gerätekonfiguration';
+$labels['deviceconfig'] = 'Device configuration';
 $labels['folderstosync'] = 'Order zum Synchronisieren';
 $labels['mail'] = 'E-Mail';
 $labels['contact'] = 'Kontakte';
 $labels['event'] = 'Kalender';
 $labels['task'] = 'Aufgaben';
 $labels['note'] = 'Notizen';
+$labels['configuration'] = 'Konfiguration';
 $labels['deletedevice'] = 'Gerät löschen';
-$labels['imageformat'] = 'Bildformat';
-$labels['laxpiclabel'] = 'PNG- und GIF-Bilder erlauben';
-$labels['nodevices'] = 'Es sind noch keine Geräte registriert.<br/><br/>Um ein neues Gerät anzumelden, verbinden Sie dieses zuerst mit dem Server. Eine Anleitung dazu finden Sie im <a href="http://wiki.kolab.org/Setup_ActiveSync">Wiki</a>. Anschliessend laden Sie diese Seite neu und das Gerät wird hier aufgelistet.';
+$labels['nodevices'] = 'There are currently no devices registered.<br/><br/>In order to register a device, please connect it to the server first, using <a href="http://wiki.kolab.org/Setup_ActiveSync">the instructions in the Wiki</a>. Afterwards the device should become available for configuration here.';
 $labels['savingdata'] = 'Daten werden gespeichert...';
 $labels['savingerror'] = 'Fehler beim Speichern';
 $labels['notsupported'] = 'Ihr Server unterstützt keine Activesync-Konfiguration';
 $labels['devicedeleteconfirm'] = 'Wollen Sie wirklich alle Einstellungen für dieses Gerät löschen?';
 $labels['successfullydeleted'] = 'Die Geräteinstellungen wurden erfolgreich gelöscht';
-
+$labels['devicenotfound'] = 'Es kann nicht auf die Gerätekonfiguration zugegriffen werden';
+$labels['devicetype'] = 'Device type';
+$labels['acsversion'] = 'Protocol version';
+$labels['useragent'] = 'User agent';
+$labels['friendlyname'] = 'Friendly name';
+$labels['os'] = 'Operating system';
+$labels['oslanguage'] = 'OS language';
+$labels['phonenumber'] = 'Phone number';
+$labels['arialabeldeviceframe'] = 'Device synchronization settings form';
 ?>

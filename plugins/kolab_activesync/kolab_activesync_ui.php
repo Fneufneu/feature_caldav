@@ -7,7 +7,7 @@
  * @author Thomas Bruederli <bruederli@kolabsys.com>
  * @author Aleksander Machniak <machniak@kolabsys.com>
  *
- * Copyright (C) 2011-2012, Kolab Systems AG <contact@kolabsys.com>
+ * Copyright (C) 2011-2013, Kolab Systems AG <contact@kolabsys.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -37,7 +37,6 @@ class kolab_activesync_ui
         $this->skin_path = 'plugins/kolab_activesync/' . $skin_path;
 
         $this->plugin->include_stylesheet($skin_path . 'config.css');
-        $this->rc->output->include_script('list.js');
     }
 
     public function device_list($attrib = array())
@@ -56,6 +55,8 @@ class kolab_activesync_ui
         $this->rc->output->add_gui_object('devicelist', $attrib['id']);
         $this->rc->output->set_env('devicecount', count($devices));
 
+        $this->rc->output->include_script('list.js');
+
         return $table->show($attrib);
     }
 
@@ -68,18 +69,7 @@ class kolab_activesync_ui
         $input = new html_inputfield(array('name' => 'devicealias', 'id' => $field_id, 'size' => 40));
         $table->add('title', html::label($field_id, $this->plugin->gettext('devicealias')));
         $table->add(null, $input->show($this->device['ALIAS'] ? $this->device['ALIAS'] : $this->device['_id']));
-/*
-        $field_id = 'config-device-mode';
-        $select = new html_select(array('name' => 'syncmode', 'id' => $field_id));
-        $select->add(array($this->plugin->gettext('modeauto'), $this->plugin->gettext('modeflat'), $this->plugin->gettext('modefolder')), array('-1', '0', '1'));
-        $table->add('title', html::label($field_id, $this->plugin->gettext('syncmode')));
-        $table->add(null, $select->show('-1'));
 
-        $field_id = 'config-device-laxpic';
-        $checkbox = new html_checkbox(array('name' => 'laxpic', 'value' => '1', 'id' => $field_id));
-        $table->add('title', $this->plugin->gettext('imageformat'));
-        $table->add(null, html::label($field_id, $checkbox->show() . ' ' . $this->plugin->gettext('laxpiclabel')));
-*/
         // read-only device information
         $info = $this->plugin->device_info($this->device['ID']);
 
@@ -106,7 +96,7 @@ class kolab_activesync_ui
             $attrib['id'] = 'foldersubscriptions';
 
         // group folders by type (show only known types)
-        $folder_groups = array('mail' => array(), 'contact' => array(), 'event' => array(), 'task' => array());
+        $folder_groups = array('mail' => array(), 'contact' => array(), 'event' => array(), 'task' => array(), 'note' => array());
         $folder_types  = kolab_storage::folders_typedata();
         $imei          = $this->device['_id'];
         $subscribed    = array();
@@ -155,9 +145,11 @@ class kolab_activesync_ui
         $alarms = ($attrib['type'] == 'event' || $attrib['type'] == 'task');
 
         $table = new html_table(array('cellspacing' => 0));
-        $table->add_header('subscription', $attrib['syncicon'] ? html::img(array('src' => $this->skin_path . $attrib['syncicon'], 'title' => $this->plugin->gettext('synchronize'))) : '');
+        $table->add_header(array('class' => 'subscription', 'title' => $this->plugin->gettext('synchronize'), 'tabindex' => 0),
+            $attrib['syncicon'] ? html::img(array('src' => $this->skin_path . $attrib['syncicon'])) : '');
         if ($alarms) {
-            $table->add_header('alarm', $attrib['alarmicon'] ? html::img(array('src' => $this->skin_path . $attrib['alarmicon'], 'title' => $this->plugin->gettext('withalarms'))) : '');
+            $table->add_header(array('class' => 'alarm', 'title' => $this->plugin->gettext('withalarms'), 'tabindex' => 0),
+                $attrib['alarmicon'] ? html::img(array('src' => $this->skin_path . $attrib['alarmicon'])) : '');
         }
         $table->add_header('foldername', $this->plugin->gettext('folder'));
 
@@ -200,6 +192,53 @@ class kolab_activesync_ui
             }
 
             $table->add(join(' ', $classes), html::label($folder_id, $foldername));
+        }
+
+        return $table->show();
+    }
+
+    public function folder_options_table($folder_name, $devices, $type)
+    {
+        $alarms      = $type == 'event' || $type == 'task';
+        $meta        = $this->plugin->folder_meta();
+        $folder_data = (array) ($meta[$folder_name] ? $meta[$folder_name]['FOLDER'] : null);
+
+        $table = new html_table(array('cellspacing' => 0, 'id' => 'folder-sync-options', 'class' => 'records-table'));
+
+        // table header
+        $table->add_header(array('class' => 'device'), $this->plugin->gettext('devicealias'));
+        $table->add_header(array('class' => 'subscription'), $this->plugin->gettext('synchronize'));
+        if ($alarms) {
+            $table->add_header(array('class' => 'alarm'), $this->plugin->gettext('withalarms'));
+        }
+
+        // table records
+        foreach ($devices as $id => $device) {
+            $info     = $this->plugin->device_info($device['ID']);
+            $name     = $id;
+            $title    = '';
+            $checkbox = new html_checkbox(array('name' => "_subscriptions[$id]", 'value' => 1,
+                'onchange' => 'return activesync_object.update_sync_data(this)'));
+
+            if (!empty($info)) {
+                $_name = trim($info['friendlyname'] . ' ' . $info['os']);
+                $title = $info['useragent'];
+
+                if ($_name) {
+                    $name .= " ($_name)";
+                }
+            }
+
+            $table->add_row();
+            $table->add(array('class' => 'device', 'title' => $title), $name);
+            $table->add('subscription', $checkbox->show(!empty($folder_data[$id]['S']) ? 1 : 0));
+
+            if ($alarms) {
+                $checkbox_alarm = new html_checkbox(array('name' => "_alarms[$id]", 'value' => 1,
+                    'onchange' => 'return activesync_object.update_sync_data(this)'));
+
+                $table->add('alarm', $checkbox_alarm->show($folder_data[$id]['S'] > 1 ? 1 : 0));
+            }
         }
 
         return $table->show();

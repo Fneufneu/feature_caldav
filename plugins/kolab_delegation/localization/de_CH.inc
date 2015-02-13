@@ -1,30 +1,36 @@
 <?php
-
-$labels = array();
-
-$labels['tabtitle'] = 'Delegation';
-$labels['delegates'] = 'Delegates';
-$labels['delegate'] = 'Delegate';
+/**
+ * Localizations for the Kolab Delegation plugin
+ *
+ * Copyright (C) 2014, Kolab Systems AG
+ *
+ * For translation see https://www.transifex.com/projects/p/kolab/resource/kolab_delegation/
+ */
+$labels['tabtitle'] = 'Vertretung';
+$labels['delegationtitle'] = 'Manage delegates';
+$labels['delegates'] = 'Vertreter';
+$labels['delegate'] = 'Vertreter';
 $labels['mail'] = 'E-Mail';
 $labels['contact'] = 'Kontakte';
 $labels['event'] = 'Kalender';
 $labels['task'] = 'Aufgaben';
 $labels['note'] = 'Notizen';
-$labels['yes'] = 'Yes';
-$labels['no'] = 'No';
-
-$labels['adddelegate'] = 'Add delegate';
-$labels['deletedelegate'] = 'Delete delegate';
-
+$labels['yes'] = 'Ja';
+$labels['no'] = 'Nein';
+$labels['read'] = 'Read-only';
+$labels['write'] = 'Write';
+$labels['adddelegate'] = 'Vertreter hinzufügen';
+$labels['deletedelegate'] = 'Vertreter löschen';
 $labels['savingdata'] = 'Speichere Daten...';
-$labels['delegatedeleteconfirm'] = 'Do you really want to delete this delegate?';
-$labels['delegateremoveacl'] = 'remove access rights on folders assigned to this user';
-$labels['deleteconfirm'] = 'Confirmation';
-$labels['deletesuccess'] = 'The delegate was successfully removed.';
-$labels['deleteerror'] = 'Could not remove delegate.';
-$labels['updatesuccess'] = 'The delegate was successfully updated.';
-$labels['updateerror'] = 'Could not update delegate.';
-$labels['createsuccess'] = 'The delegate was successfully added.';
-$labels['createerror'] = 'Could not add delegate.';
-
+$labels['delegatedeleteconfirm'] = 'Wollen Sie diesen Vertreter wirklich löschen?';
+$labels['delegateremoveacl'] = 'Zugriffsrechte von diesem Benutzer zugeordneten Ordnern entfernen';
+$labels['deleteconfirm'] = 'Bestätigung';
+$labels['deletesuccess'] = 'Der Vertreter wurde erfolgreich entfernt.';
+$labels['deleteerror'] = 'Vertreter konnte nicht entfernt werden.';
+$labels['updatesuccess'] = 'Der Vertreter wurde erfolgreich aktualisiert.';
+$labels['updateerror'] = 'Vertreter konnte nicht aktualisiert werden.';
+$labels['createsuccess'] = 'Der Vertreter wurde erfolgreich hinzugefügt.';
+$labels['createerror'] = 'Vertreter konnte nicht hinzugefügt werden.';
+$labels['arialabeldelegatedelete'] = 'Delegate deletion dialog';
+$labels['arialabeldelegateform'] = 'Delegate properties form';
 ?>

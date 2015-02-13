@@ -26,6 +26,8 @@ class kolab_format_event extends kolab_format_xcal
 {
     public $CTYPEv2 = 'application/x-vnd.kolab.event';
 
+    public $scheduling_properties = array('start', 'end', 'allday', 'location', 'status', 'cancelled');
+
     protected $objclass = 'Event';
     protected $read_func = 'readEvent';
     protected $write_func = 'writeEvent';
@@ -92,11 +94,11 @@ class kolab_format_event extends kolab_format_xcal
         $this->obj->setStatus($status);
 
         // save recurrence exceptions
-        if ($object['recurrence']['EXCEPTIONS']) {
+        if (is_array($object['recurrence']) && $object['recurrence']['EXCEPTIONS']) {
             $vexceptions = new vectorevent;
             foreach((array)$object['recurrence']['EXCEPTIONS'] as $exception) {
                 $exevent = new kolab_format_event;
-                $exevent->set($this->compact_exception($exception, $object));  // only save differing values
+                $exevent->set($this->compact_exception($exception));  // only save differing values
                 $exevent->obj->setRecurrenceID(self::get_datetime($exception['start'], null, true), (bool)$exception['thisandfuture']);
                 $vexceptions->push($exevent->obj);
             }
@@ -193,14 +195,10 @@ class kolab_format_event extends kolab_format_xcal
      */
     public function get_tags()
     {
-        $tags = array();
+        $tags = parent::get_tags();
 
         foreach ((array)$this->data['categories'] as $cat) {
             $tags[] = rcube_utils::normalize_string($cat);
-        }
-
-        if (!empty($this->data['alarms'])) {
-            $tags[] = 'x-has-alarms';
         }
 
         return $tags;
@@ -209,7 +207,7 @@ class kolab_format_event extends kolab_format_xcal
     /**
      * Remove some attributes from the exception container
      */
-    private function compact_exception($exception, $master)
+    private function compact_exception($exception)
     {
       $forbidden = array('recurrence','organizer','attendees','sequence');
 

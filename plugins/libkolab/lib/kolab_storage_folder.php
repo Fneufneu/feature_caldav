@@ -22,26 +22,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-class kolab_storage_folder
+class kolab_storage_folder extends kolab_storage_folder_api
 {
-    /**
-     * The folder name.
-     * @var string
-     */
-    public $name;
-
-    /**
-     * The type of this folder.
-     * @var string
-     */
-    public $type;
-
-    /**
-     * Is this folder set to be the default for its type
-     * @var boolean
-     */
-    public $default = false;
-
     /**
      * The kolab_storage_cache instance for caching operations
      * @var object
@@ -49,11 +31,6 @@ class kolab_storage_folder
     public $cache;
 
     private $type_annotation;
-    private $namespace;
-    private $imap;
-    private $info;
-    private $idata;
-    private $owner;
     private $resource_uri;
 
 
@@ -62,7 +39,7 @@ class kolab_storage_folder
      */
     function __construct($name, $type = null)
     {
-        $this->imap = rcube::get_instance()->get_storage();
+        parent::__construct($name);
         $this->imap->set_options(array('skip_deleted' => true));
         $this->set_folder($name, $type);
     }
@@ -74,14 +51,16 @@ class kolab_storage_folder
      * @param string The folder name/path
      * @param string Optional folder type if known
      */
-    public function set_folder($name, $ftype = null)
+    public function set_folder($name, $type = null)
     {
-        $this->type_annotation = $ftype ? $ftype : kolab_storage::folder_type($name);
+        $this->type_annotation = $type ? $type : kolab_storage::folder_type($name);
 
         $oldtype = $this->type;
         list($this->type, $suffix) = explode('.', $this->type_annotation);
         $this->default      = $suffix == 'default';
+        $this->subtype      = $this->default ? '' : $suffix;
         $this->name         = $name;
+        $this->id           = kolab_storage::folder_id($name);
 
         // reset cached object properties
         $this->owner = $this->namespace = $this->resource_uri = $this->info = $this->idata = null;
@@ -92,154 +71,6 @@ class kolab_storage_folder
 
         $this->imap->set_folder($this->name);
         $this->cache->set_folder($this);
-    }
-
-    /**
-     *
-     */
-    public function get_folder_info()
-    {
-        if (!isset($this->info))
-            $this->info = $this->imap->folder_info($this->name);
-
-        return $this->info;
-    }
-
-    /**
-     * Make IMAP folder data available for this folder
-     */
-    public function get_imap_data()
-    {
-        if (!isset($this->idata))
-            $this->idata = $this->imap->folder_data($this->name);
-
-        return $this->idata;
-    }
-
-    /**
-     * Returns IMAP metadata/annotations (GETMETADATA/GETANNOTATION)
-     *
-     * @param array List of metadata keys to read
-     * @return array Metadata entry-value hash array on success, NULL on error
-     */
-    public function get_metadata($keys)
-    {
-        $metadata = $this->imap->get_metadata($this->name, (array)$keys);
-        return $metadata[$this->name];
-    }
-
-
-    /**
-     * Sets IMAP metadata/annotations (SETMETADATA/SETANNOTATION)
-     *
-     * @param array  $entries Entry-value array (use NULL value as NIL)
-     * @return boolean True on success, False on failure
-     */
-    public function set_metadata($entries)
-    {
-        return $this->imap->set_metadata($this->name, $entries);
-    }
-
-
-    /**
-     * Returns the owner of the folder.
-     *
-     * @param boolean  Return a fully qualified owner name (i.e. including domain for shared folders)
-     * @return string  The owner of this folder.
-     */
-    public function get_owner($fully_qualified = false)
-    {
-        // return cached value
-        if (isset($this->owner))
-            return $this->owner;
-
-        $info = $this->get_folder_info();
-        $rcmail = rcube::get_instance();
-
-        switch ($info['namespace']) {
-        case 'personal':
-            $this->owner = $rcmail->get_user_name();
-            break;
-
-        case 'shared':
-            $this->owner = 'anonymous';
-            break;
-
-        default:
-            list($prefix, $this->owner) = explode($this->imap->get_hierarchy_delimiter(), $info['name']);
-            $fully_qualified = true;  // enforce email addresses (backwards compatibility)
-            break;
-        }
-
-        if ($fully_qualified && strpos($this->owner, '@') === false) {
-            // extract domain from current user name
-            $domain = strstr($rcmail->get_user_name(), '@');
-            // fall back to mail_domain config option
-            if (empty($domain) && ($mdomain = $rcmail->config->mail_domain($this->imap->options['host']))) {
-                $domain = '@' . $mdomain;
-            }
-            $this->owner .= $domain;
-        }
-
-        return $this->owner;
-    }
-
-
-    /**
-     * Getter for the name of the namespace to which the IMAP folder belongs
-     *
-     * @return string Name of the namespace (personal, other, shared)
-     */
-    public function get_namespace()
-    {
-        if (!isset($this->namespace))
-            $this->namespace = $this->imap->folder_namespace($this->name);
-        return $this->namespace;
-    }
-
-
-    /**
-     * Get IMAP ACL information for this folder
-     *
-     * @return string  Permissions as string
-     */
-    public function get_myrights()
-    {
-        $rights = $this->info['rights'];
-
-        if (!is_array($rights))
-            $rights = $this->imap->my_rights($this->name);
-
-        return join('', (array)$rights);
-    }
-
-
-    /**
-     * Get the display name value of this folder
-     *
-     * @return string Folder name
-     */
-    public function get_name()
-    {
-        return kolab_storage::object_name($this->name, $this->namespace);
-    }
-
-
-    /**
-     * Get the color value stored in metadata
-     *
-     * @param string Default color value to return if not set
-     * @return mixed Color value from IMAP metadata or $default is not set
-     */
-    public function get_color($default = null)
-    {
-        // color is defined in folder METADATA
-        $metadata = $this->get_metadata(array(kolab_storage::COLOR_KEY_PRIVATE, kolab_storage::COLOR_KEY_SHARED));
-        if (($color = $metadata[kolab_storage::COLOR_KEY_PRIVATE]) || ($color = $metadata[kolab_storage::COLOR_KEY_SHARED])) {
-            return $color;
-        }
-
-        return $default;
     }
 
 
@@ -288,9 +119,12 @@ class kolab_storage_folder
 
         // generate a folder UID and set it to IMAP
         $uid = rtrim(chunk_split(md5($this->name . $this->get_owner() . uniqid('-', true)), 12, '-'), '-');
-        $this->set_uid($uid);
+        if ($this->set_uid($uid)) {
+            return $uid;
+        }
 
-        return $uid;
+        // create hash from folder name if we can't write the UID metadata
+        return md5($this->name . $this->get_owner());
     }
 
     /**
@@ -516,7 +350,30 @@ class kolab_storage_folder
     {
         if ($msguid = ($mailbox ? $uid : $this->cache->uid2msguid($uid))) {
             $this->imap->set_folder($mailbox ? $mailbox : $this->name);
-            return $this->imap->get_message_part($msguid, $part, null, $print, $fp, $skip_charset_conv);
+
+            if (substr($part, 0, 2) == 'i:') {
+                // attachment data is stored in XML
+                if ($object = $this->cache->get($msguid)) {
+                    // load data from XML (attachment content is not stored in cache)
+                    if ($object['_formatobj'] && isset($object['_size'])) {
+                        $object['_attachments'] = array();
+                        $object['_formatobj']->get_attachments($object);
+                    }
+
+                    foreach ($object['_attachments'] as $attach) {
+                        if ($attach['id'] == $part) {
+                            if ($print)   echo $attach['content'];
+                            else if ($fp) fwrite($fp, $attach['content']);
+                            else          return $attach['content'];
+                            return true;
+                        }
+                    }
+                }
+            }
+            else {
+                // return message part from IMAP directly
+                return $this->imap->get_message_part($msguid, $part, null, $print, $fp, $skip_charset_conv);
+            }
         }
 
         return null;
@@ -586,8 +443,8 @@ class kolab_storage_folder
 
         // get XML part
         foreach ((array)$message->attachments as $part) {
-            if (!$xml && ($part->mimetype == $content_type || preg_match('!application/([a-z]+\+)?xml!', $part->mimetype))) {
-                $xml = $part->body ? $part->body : $message->get_part_content($part->mime_id);
+            if (!$xml && ($part->mimetype == $content_type || preg_match('!application/([a-z.]+\+)?xml!', $part->mimetype))) {
+                $xml = $message->get_part_body($part->mime_id, true);
             }
             else if ($part->filename || $part->content_id) {
                 $key  = $part->content_id ? trim($part->content_id, '<>') : $part->filename;
@@ -775,24 +632,27 @@ class kolab_storage_folder
 
             $result = $this->imap->save_message($this->name, $raw_msg, null, false, null, null, $binary);
 
-            // delete old message
-            if ($result && !empty($object['_msguid']) && !empty($object['_mailbox'])) {
-                $this->cache->bypass(true);
-                $this->imap->delete_message($object['_msguid'], $object['_mailbox']);
-                $this->cache->bypass(false);
-                $this->cache->set($object['_msguid'], false, $object['_mailbox']);
-            }
-
             // update cache with new UID
             if ($result) {
+                $old_uid = $object['_msguid'];
+
                 $object['_msguid'] = $result;
                 $object['_mailbox'] = $this->name;
-                $this->cache->insert($result, $object);
 
-                // remove temp file
-                if ($body_file) {
-                    @unlink($body_file);
+                if ($old_uid) {
+                    // delete old message
+                    $this->cache->bypass(true);
+                    $this->imap->delete_message($old_uid, $object['_mailbox']);
+                    $this->cache->bypass(false);
                 }
+
+                // insert/update message in cache
+                $this->cache->save($result, $object, $old_uid);
+            }
+
+            // remove temp file
+            if ($body_file) {
+                @unlink($body_file);
             }
         }
 
@@ -828,7 +688,7 @@ class kolab_storage_folder
                         $recurrence = new kolab_date_recurrence($object['_formatobj']);
                         if ($end = $recurrence->end()) {
                             unset($exception['recurrence']['COUNT']);
-                            $exception['recurrence']['UNTIL'] = new DateTime('@'.$end);
+                            $exception['recurrence']['UNTIL'] = $end;
                         }
                     }
 
@@ -1022,7 +882,7 @@ class kolab_storage_folder
         if (!empty($object['_attachments']) && ($mem_limit = parse_bytes(ini_get('memory_limit'))) > 0) {
             $memory = function_exists('memory_get_usage') ? memory_get_usage() : 16*1024*1024; // safe value: 16MB
 
-            foreach ($object['_attachments'] as $id => $attachment) {
+            foreach ($object['_attachments'] as $attachment) {
                 $memory += $attachment['size'];
             }
 

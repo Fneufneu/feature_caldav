@@ -154,6 +154,14 @@ class rcube_kolab_contacts extends rcube_addressbook
         return $folder;
     }
 
+    /**
+     * Wrapper for kolab_storage_folder::get_foldername()
+     */
+    public function get_foldername()
+    {
+        return $this->storagefolder->get_foldername();
+    }
+
 
     /**
      * Getter for the IMAP folder name
@@ -181,11 +189,30 @@ class rcube_kolab_contacts extends rcube_addressbook
     }
 
     /**
+     * Getter for parent folder path
+     *
+     * @return string Full path to parent folder
+     */
+    public function get_parent()
+    {
+        return $this->storagefolder->get_parent();
+    }
+
+    /**
+     * Check subscription status of this folder
+     *
+     * @return boolean True if subscribed, false if not
+     */
+    public function is_subscribed()
+    {
+        return kolab_storage::folder_is_subscribed($this->imap_folder);
+    }
+
+    /**
      * Compose an URL for CardDAV access to this address book (if configured)
      */
     public function get_carddav_url()
     {
-      $url = null;
       $rcmail = rcmail::get_instance();
       if ($template = $rcmail->config->get('kolab_addressbook_carddav_url', null)) {
         return strtr($template, array(
@@ -317,7 +344,7 @@ class rcube_kolab_contacts extends rcube_addressbook
             }
         }
         else {
-            $this->_fetch_contacts($query = array(), true);
+            $this->_fetch_contacts($query = 'contact', true);
         }
 
         if ($fetch_all) {
@@ -337,14 +364,17 @@ class rcube_kolab_contacts extends rcube_addressbook
                 }
             }
         }
-        else if (!empty($this->dataset)) {
-            $this->result->count = isset($query) ? $this->storagefolder->count($query) : count($this->dataset);
+        else if (isset($this->dataset)) {
+            // get all records count, skip the query if possible
+            if (!isset($query) || count($this->dataset) < $this->page_size) {
+                $this->result->count = count($this->dataset) + $this->page_size * ($this->list_page - 1);
+            }
+            else {
+                $this->result->count = $this->storagefolder->count($query);
+            }
 
-            $start_row = $subset < 0 ? $this->page_size + $subset : 0;
-            $last_row  = min($subset != 0 ? $start_row + abs($subset) : $this->page_size, $this->result->count);
-
-            for ($i = $start_row; $i < $last_row; $i++) {
-                $this->result->add($this->_to_rcube_contact($this->dataset[$i]));
+            foreach ($this->dataset as $idx => $record) {
+                $this->result->add($this->_to_rcube_contact($record));
             }
         }
 
@@ -407,6 +437,11 @@ class rcube_kolab_contacts extends rcube_addressbook
         // NOTE: this is only some rough pre-filtering but probably includes false positives
         $squery = $this->_search_query($fields, $value, $mode);
 
+        // add magic selector to select contacts with birthday dates only
+        if (in_array('birthday', $required)) {
+            $squery[] = array('tags', '=', 'x-has-birthday');
+        }
+
         // get all/matching records
         $this->_fetch_contacts($squery);
 
@@ -414,7 +449,7 @@ class rcube_kolab_contacts extends rcube_addressbook
         $this->filter = array('fields' => $fields, 'value' => $value, 'mode' => $mode, 'ids' => array());
 
         // search by iterating over all records in dataset
-        foreach ($this->dataset as $i => $record) {
+        foreach ($this->dataset as $record) {
             $contact = $this->_to_rcube_contact($record);
             $id = $contact['ID'];
 
@@ -1220,6 +1255,9 @@ class rcube_kolab_contacts extends rcube_addressbook
         }
 
         $contact['address'] = $addresses;
+
+        // categories are not supported in the web client but should be preserved (#2608)
+        $contact['categories'] = $old['categories'];
 
         // copy meta data (starting with _) from old object
         foreach ((array)$old as $key => $val) {

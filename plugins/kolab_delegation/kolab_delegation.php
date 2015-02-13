@@ -65,9 +65,15 @@ class kolab_delegation extends rcube_plugin
             $this->register_action('plugin.delegation-save',         array($this, 'controller_action'));
             $this->register_action('plugin.delegation-autocomplete', array($this, 'controller_action'));
 
+            $this->add_hook('settings_actions', array($this, 'settings_actions'));
+
             if ($this->rc->action == 'plugin.delegation' || empty($_REQUEST['_framed'])) {
-                $this->add_texts('localization/', array('tabtitle', 'deleteconfirm', 'savingdata', 'yes', 'no'));
-                $this->include_script('kolab_delegation.js');
+                $this->add_texts('localization/', array('deleteconfirm', 'savingdata', 'yes', 'no'));
+
+                if ($this->rc->action == 'plugin.delegation') {
+                    $this->include_script('kolab_delegation.js');
+                }
+
                 $this->skin_path = $this->local_skin_path();
                 $this->include_stylesheet($this->skin_path . '/style.css');
             }
@@ -76,6 +82,22 @@ class kolab_delegation extends rcube_plugin
         else if ($this->rc->task == 'calendar' && empty($_REQUEST['_framed'])) {
             $this->calendar_ui();
         }
+    }
+
+    /**
+     * Adds Delegation section in Settings
+     */
+    function settings_actions($args)
+    {
+        $args['actions'][] = array(
+            'action' => 'plugin.delegation',
+            'class'  => 'delegation',
+            'label'  => 'tabtitle',
+            'domain' => 'kolab_delegation',
+            'title'  => 'delegationtitle',
+        );
+
+        return $args;
     }
 
     /**
@@ -168,6 +190,11 @@ class kolab_delegation extends rcube_plugin
         // This is a place where we detect delegate context
         // So we can handle event invitations on behalf of delegator
         // @TODO: should we do this only in delegators' folders?
+
+        // skip invalid messages or Kolab objects (for better performance)
+        if (empty($args['object']->headers) || $args['object']->headers->get('x-kolab-type', false)) {
+            return $args;
+        }
 
         $engine = $this->engine();
         $context = $engine->delegator_context_from_message($args['object']);
@@ -294,14 +321,14 @@ class kolab_delegation extends rcube_plugin
      */
     public function controller_action()
     {
-        $this->add_texts('localization/', true);
+        $this->add_texts('localization/');
 
         $engine = $this->engine();
 
         // Delegate delete
         if ($this->rc->action == 'plugin.delegation-delete') {
-            $id      = get_input_value('id', RCUBE_INPUT_GPC);
-            $success = $engine->delegate_delete($id, (bool) get_input_value('acl', RCUBE_INPUT_GPC));
+            $id      = rcube_utils::get_input_value('id', rcube_utils::INPUT_GPC);
+            $success = $engine->delegate_delete($id, (bool) rcube_utils::get_input_value('acl', rcube_utils::INPUT_GPC));
 
             if ($success) {
                 $this->rc->output->show_message($this->gettext('deletesuccess'), 'confirmation');
@@ -313,8 +340,8 @@ class kolab_delegation extends rcube_plugin
         }
         // Delegate add/update
         else if ($this->rc->action == 'plugin.delegation-save') {
-            $id  = get_input_value('id', RCUBE_INPUT_GPC);
-            $acl = get_input_value('folders', RCUBE_INPUT_GPC);
+            $id  = rcube_utils::get_input_value('id', rcube_utils::INPUT_GPC);
+            $acl = rcube_utils::get_input_value('folders', rcube_utils::INPUT_GPC);
 
             // update
             if ($id) {
@@ -331,7 +358,7 @@ class kolab_delegation extends rcube_plugin
             }
             // new
             else {
-                $login    = get_input_value('newid', RCUBE_INPUT_GPC);
+                $login    = rcube_utils::get_input_value('newid', rcube_utils::INPUT_GPC);
                 $delegate = $engine->delegate_get_by_name($login);
                 $success  = $engine->delegate_add($delegate, $acl);
 
@@ -349,11 +376,11 @@ class kolab_delegation extends rcube_plugin
         }
         // Delegate autocompletion
         else if ($this->rc->action == 'plugin.delegation-autocomplete') {
-            $search = get_input_value('_search', RCUBE_INPUT_GPC, true);
-            $sid    = get_input_value('_id', RCUBE_INPUT_GPC);
+            $search = rcube_utils::get_input_value('_search', rcube_utils::INPUT_GPC, true);
+            $reqid  = rcube_utils::get_input_value('_reqid', rcube_utils::INPUT_GPC);
             $users  = $engine->list_users($search);
 
-            $this->rc->output->command('ksearch_query_results', $users, $search, $sid);
+            $this->rc->output->command('ksearch_query_results', $users, $search, $reqid);
         }
 
         $this->rc->output->send();
@@ -391,7 +418,7 @@ class kolab_delegation extends rcube_plugin
     {
         $engine   = $this->engine();
         $table    = new html_table(array('cols' => 2));
-        $id       = get_input_value('_id', RCUBE_INPUT_GPC);
+        $id       = rcube_utils::get_input_value('_id', rcube_utils::INPUT_GPC);
         $field_id = 'delegate';
 
         if ($id) {
@@ -430,7 +457,7 @@ class kolab_delegation extends rcube_plugin
         }
 
         $engine = $this->engine();
-        $id     = get_input_value('_id', RCUBE_INPUT_GPC);
+        $id     = rcube_utils::get_input_value('_id', rcube_utils::INPUT_GPC);
 
         if ($id) {
             $delegate = $engine->delegate_get($id);
@@ -471,8 +498,8 @@ class kolab_delegation extends rcube_plugin
         $write_ico = $attrib['writeicon'] ? html::img(array('src' => $path . $attrib['writeicon'], 'title' => $this->gettext('write'))) : '';
 
         $table = new html_table(array('cellspacing' => 0));
-        $table->add_header('read', $read_ico);
-        $table->add_header('write', $write_ico);
+        $table->add_header(array('class' => 'read', 'title' => $this->gettext('read'), 'tabindex' => 0), $read_ico);
+        $table->add_header(array('class' => 'write', 'title' => $this->gettext('write'), 'tabindex' => 0), $write_ico);
         $table->add_header('foldername', $this->rc->gettext('folder'));
 
         $checkbox_read  = new html_checkbox(array('name' => 'read[]', 'class' => 'read'));

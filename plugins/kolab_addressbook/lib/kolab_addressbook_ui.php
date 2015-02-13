@@ -54,12 +54,18 @@ class kolab_addressbook_ui
             // Include stylesheet (for directorylist)
             $this->plugin->include_stylesheet($this->plugin->local_skin_path().'/kolab_addressbook.css');
 
+            // include kolab folderlist widget if available
+            if (is_readable($this->plugin->api->dir . 'libkolab/js/folderlist.js')) {
+                $this->plugin->api->include_script('libkolab/js/folderlist.js');
+            }
+
             // Add actions on address books
-            $options = array('book-create', 'book-edit', 'book-delete');
+            $options = array('book-create', 'book-edit', 'book-delete', 'book-remove');
             $idx     = 0;
 
             if ($this->rc->config->get('kolab_addressbook_carddav_url')) {
               $options[] = 'book-showurl';
+              $this->rc->output->set_env('kolab_addressbook_carddav_url', true);
             }
 
             foreach ($options as $command) {
@@ -87,7 +93,18 @@ class kolab_addressbook_ui
 
             $this->rc->output->add_label('kolab_addressbook.bookdeleteconfirm',
                 'kolab_addressbook.bookdeleting', 'kolab_addressbook.bookshowurl',
-                'kolab_addressbook.carddavurldescription');
+                'kolab_addressbook.carddavurldescription',
+                'kolab_addressbook.bookedit',
+                'kolab_addressbook.bookdelete',
+                'kolab_addressbook.bookshowurl',
+                'kolab_addressbook.findaddressbooks',
+                'kolab_addressbook.searchterms',
+                'kolab_addressbook.foldersearchform',
+                'kolab_addressbook.listsearchresults',
+                'kolab_addressbook.nraddressbooksfound',
+                'kolab_addressbook.noaddressbooksfound',
+                'kolab_addressbook.foldersubscribe',
+                'resetsearch');
         }
         // book create/edit form
         else {
@@ -116,8 +133,8 @@ class kolab_addressbook_ui
      */
     public function book_form($attrib)
     {
-        $action = trim(get_input_value('_act', RCUBE_INPUT_GPC));
-        $folder = trim(get_input_value('_source', RCUBE_INPUT_GPC, true)); // UTF8
+        $action = trim(rcube_utils::get_input_value('_act', rcube_utils::INPUT_GPC));
+        $folder = trim(rcube_utils::get_input_value('_source', rcube_utils::INPUT_GPC, true)); // UTF8
 
         $hidden_fields[] = array('name' => '_source', 'value' => $folder);
 
@@ -127,9 +144,9 @@ class kolab_addressbook_ui
 
         if ($this->rc->action == 'plugin.book-save') {
             // save error
-            $name      = trim(get_input_value('_name', RCUBE_INPUT_GPC, true)); // UTF8
-            $old       = trim(get_input_value('_oldname', RCUBE_INPUT_GPC, true)); // UTF7-IMAP
-            $path_imap = trim(get_input_value('_parent', RCUBE_INPUT_GPC, true)); // UTF7-IMAP
+            $name      = trim(rcube_utils::get_input_value('_name', rcube_utils::INPUT_GPC, true)); // UTF8
+            $old       = trim(rcube_utils::get_input_value('_oldname', rcube_utils::INPUT_GPC, true)); // UTF7-IMAP
+            $path_imap = trim(rcube_utils::get_input_value('_parent', rcube_utils::INPUT_GPC, true)); // UTF7-IMAP
 
             $hidden_fields[] = array('name' => '_oldname', 'value' => $old);
 

@@ -26,6 +26,8 @@ class kolab_format_task extends kolab_format_xcal
 {
     public $CTYPEv2 = 'application/x-vnd.kolab.task';
 
+    public $scheduling_properties = array('start', 'due', 'summary', 'status');
+
     protected $objclass = 'Todo';
     protected $read_func = 'readTodo';
     protected $write_func = 'writeTodo';
@@ -42,15 +44,16 @@ class kolab_format_task extends kolab_format_xcal
         parent::set($object);
 
         $this->obj->setPercentComplete(intval($object['complete']));
-        $this->obj->setStart(self::get_datetime($object['start'], null, $object['start']->_dateonly));
-        $this->obj->setDue(self::get_datetime($object['due'], null, $object['due']->_dateonly));
 
         $status = kolabformat::StatusUndefined;
-        if ($object['complete'] == 100)
+        if ($object['complete'] == 100 && !array_key_exists('status', $object))
             $status = kolabformat::StatusCompleted;
         else if ($object['status'] && array_key_exists($object['status'], $this->status_map))
             $status = $this->status_map[$object['status']];
         $this->obj->setStatus($status);
+
+        $this->obj->setStart(self::get_datetime($object['start'], null, $object['start']->_dateonly));
+        $this->obj->setDue(self::get_datetime($object['due'], null, $object['due']->_dateonly));
 
         $related = new vectors;
         if (!empty($object['parent_id']))
@@ -110,16 +113,13 @@ class kolab_format_task extends kolab_format_xcal
      */
     public function get_tags()
     {
-        $tags = array();
+        $tags = parent::get_tags();
 
-        if ($this->data['status'] == 'COMPLETED' || $this->data['complete'] == 100)
+        if ($this->data['status'] == 'COMPLETED' || ($this->data['complete'] == 100 && empty($this->data['status'])))
             $tags[] = 'x-complete';
 
         if ($this->data['priority'] == 1)
             $tags[] = 'x-flagged';
-
-        if (!empty($this->data['alarms']))
-            $tags[] = 'x-has-alarms';
 
         if ($this->data['parent_id'])
             $tags[] = 'x-parent:' . $this->data['parent_id'];

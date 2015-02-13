@@ -1,29 +1,58 @@
 <?php
-/*
-
-+-----------------------------------------------------------------------+
-| plugins/kolab_addressbook/localization/ru_RU.inc                      |
-|                                                                       |
-| Russian translation for roundcube/kolab_addressbook plugin            |
-| Copyright (C) 2008-2011                                               |
-| Licensed under the GNU GPL                                            |
-|                                                                       |
-+-----------------------------------------------------------------------+
-| Author: Sergey Dukachev <iam@dukess.ru>                               |
-| Updates:                                                              |
-+-----------------------------------------------------------------------+
-
-@version 2011-05-11
-
-*/
-
-$labels = array();
+/**
+ * Localizations for the Kolab Address Book plugin
+ *
+ * Copyright (C) 2014, Kolab Systems AG
+ *
+ * For translation see https://www.transifex.com/projects/p/kolab/resource/kolab_addressbook/
+ */
 $labels['initials'] = 'Инициалы';
 $labels['profession'] = 'Профессия';
 $labels['officelocation'] = 'Адрес офиса';
 $labels['children'] = 'Дети';
 $labels['pgppublickey'] = 'Публичный ключ PGP';
+$labels['pkcs7publickey'] = 'Публичный ключ S/MIME';
 $labels['freebusyurl'] = 'URL свободен/занят';
+$labels['typebusiness'] = 'Служебный';
+$labels['typebusinessfax'] = 'Служебный факс';
+$labels['typecompany'] = 'Организация';
+$labels['typeprimary'] = 'Основной(ая)';
+$labels['typetelex'] = 'Telex';
+$labels['typeradio'] = 'Радиотелефон';
+$labels['typeisdn'] = 'ISDN';
+$labels['typettytdd'] = 'TTY/TDD';
+$labels['typecallback'] = 'Коллбэк';
 $labels['settings'] = 'Настройки';
-
+$labels['bookcreate'] = 'Создать адресную книгу';
+$labels['bookedit'] = 'Редактировать адресную книгу';
+$labels['bookdelete'] = 'Удалить адресную книгу';
+$labels['bookremove'] = 'Удалить из списка';
+$labels['bookproperties'] = 'Параметры адресной книги';
+$labels['bookname'] = 'Название книги';
+$labels['parentbook'] = 'Родительская книга';
+$labels['bookshowurl'] = 'Показать URL CardDAV';
+$labels['carddavurldescription'] = 'Скопируйте этот адрес в клиент, <a href="http://en.wikipedia.org/wiki/CardDAV" target="_blank">поддерживающий CardDAV</a> для полной синхронизации данной адресной книги со своим компьютером или мобильным устройством.';
+$labels['addressbookprio'] = 'Поведение/отображение адресных книг';
+$labels['personalfirst'] = 'Персональные адресные книги в начале';
+$labels['globalfirst'] = 'Глобальные адресные книги в начале';
+$labels['personalonly'] = 'Только персональные адресные книги';
+$labels['globalonly'] = 'Только глобальные адресные книги';
+$labels['findaddressbooks'] = 'Найти адресные книги';
+$labels['searchterms'] = 'Условия поиска';
+$labels['listsearchresults'] = 'Дополнительные адресные книги';
+$labels['foldersearchform'] = 'Форма поиска адресных книг';
+$labels['foldersubscribe'] = 'Всегда показывать';
+$labels['nraddressbooksfound'] = '$nr адресных книг найдено';
+$labels['noaddressbooksfound'] = 'Адресных книг не найдено';
+$messages['bookdeleteconfirm']  = 'Вы действительно хотите удалить выбранную адресную книгу и все контакты в ней?';
+$messages['bookdeleting'] = 'Удаление адресной книги...';
+$messages['booksaving'] = 'Сохранение адресной книги...';
+$messages['bookdeleted'] = 'Адресная книга успешно удалена.';
+$messages['bookupdated'] = 'Адресная книга успешно обновлена.';
+$messages['bookcreated'] = 'Адресная книга успешно создана.';
+$messages['bookdeleteerror'] = 'Возникла ошибка при удалении адресной книги.';
+$messages['bookupdateerror'] = 'Возникла ошибка при обновлении адресной книги.';
+$messages['bookcreateerror'] = 'Возникла ошибка при создании адресной книги.';
+$messages['nobooknamewarning'] = 'Пожалуйста, заполните название книги.';
+$messages['noemailnamewarning'] = 'Пожалуйста, заполните почтовый адрес или имя контакта.';
 ?>

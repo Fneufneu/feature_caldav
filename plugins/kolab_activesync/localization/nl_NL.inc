@@ -1,33 +1,32 @@
 <?php
-
-$labels = array();
 $labels['tabtitle'] = 'Activesync';
-$labels['devices'] = 'Devices';
-$labels['devicealias'] = 'Device name';
-$labels['syncmode'] = 'Synchronizatie modus';
-$labels['modeauto'] = 'Stel automatisch vast';
-$labels['modeflat'] = 'Forceer vlakke modus';
-$labels['modefolder'] = 'Forceer mappen modus';
+$labels['activesynctitle'] = 'Beheer Activesync-apparaten';
+$labels['devices'] = 'Apparaten';
+$labels['devicealias'] = 'Apparaat naam';
 $labels['synchronize'] = 'Synchronizeren';
 $labels['withalarms'] = 'Met alarmen';
 $labels['syncsettings'] = 'Synchronizatie instellingen';
-$labels['deviceconfig'] = 'Device configration';
-$labels['folderstosync'] = 'Folders to synchronize';
+$labels['deviceconfig'] = 'Apparaat configuratie';
+$labels['folderstosync'] = 'Mappen voor synchronisatie';
 $labels['mail'] = 'Email';
 $labels['contact'] = 'Adresboeken';
 $labels['event'] = 'Kalenders';
 $labels['task'] = 'Taken';
 $labels['note'] = 'Notities';
 $labels['configuration'] = 'Configuratie';
-$labels['deletedevice'] = 'Delete device';
-$labels['imageformat'] = 'Image format';
-$labels['laxpiclabel'] = 'Sta PNG en GIF plaatjes toe';
-$labels['nodevices'] = 'There are currently no devices registered.<br/><br/>In order to register a device, please connect it to the server first, using <a href="http://wiki.kolab.org/Setup_ActiveSync">the instructions in the Wiki</a>. Afterwards the device should become available for configuration here.';
+$labels['deletedevice'] = 'Verwijder apparaat';
+$labels['nodevices'] = 'Er zijn momenteel geen apparaten geregistreerd.<br/><br/>Om een apparaat te registreren, verbind deze dan eerst met de server met behulp van <a href="http://wiki.kolab.org/Setup_ActiveSync">de instructies op de Wiki</a>. Daarna is het apparaat hier beschikbaar voor configuratie.';
 $labels['savingdata'] = 'Data wordt opgeslagen...';
-$labels['savingerror'] = 'Failed to save configuration';
-$labels['notsupported'] = 'Your server does not support metadata/annotations';
-$labels['devicedeleteconfirm'] = 'Do you really want to delete the configuration for this device?';
-$labels['successfullydeleted'] = 'The device configuration was successfully removed';
-$labels['devicenotfound'] = 'Unable to read device configuration';
-
+$labels['savingerror'] = 'Fout in opslaan van configuratie';
+$labels['notsupported'] = 'Uw server ondersteunt geen metadata/annotaties';
+$labels['devicedeleteconfirm'] = 'Wilt u de configuratie voor dit apparaat echt verwijderen?';
+$labels['successfullydeleted'] = 'Het apparaat is succesvol verwijderd';
+$labels['devicenotfound'] = 'Lezen van apparaat configuratie mislukt';
+$labels['devicetype'] = 'Apparaat type';
+$labels['acsversion'] = 'Protocol versie';
+$labels['useragent'] = 'User agent';
+$labels['friendlyname'] = 'Weergave naam';
+$labels['os'] = 'Besturingssysteem';
+$labels['oslanguage'] = 'Taal besturingssysteem';
+$labels['phonenumber'] = 'Telefoonnummer';
 ?>

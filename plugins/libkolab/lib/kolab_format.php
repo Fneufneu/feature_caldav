@@ -45,7 +45,118 @@ abstract class kolab_format
     protected $version = '3.0';
 
     const KTYPE_PREFIX = 'application/x-vnd.kolab.';
-    const PRODUCT_ID = 'Roundcube-libkolab-0.9';
+    const PRODUCT_ID   = 'Roundcube-libkolab-1.1';
+
+    // mapping table for valid PHP timezones not supported by libkolabxml
+    // basically the entire list of ftp://ftp.iana.org/tz/data/backward
+    protected static $timezone_map = array(
+        'Africa/Asmera' => 'Africa/Asmara',
+        'Africa/Timbuktu' => 'Africa/Abidjan',
+        'America/Argentina/ComodRivadavia' => 'America/Argentina/Catamarca',
+        'America/Atka' => 'America/Adak',
+        'America/Buenos_Aires' => 'America/Argentina/Buenos_Aires',
+        'America/Catamarca' => 'America/Argentina/Catamarca',
+        'America/Coral_Harbour' => 'America/Atikokan',
+        'America/Cordoba' => 'America/Argentina/Cordoba',
+        'America/Ensenada' => 'America/Tijuana',
+        'America/Fort_Wayne' => 'America/Indiana/Indianapolis',
+        'America/Indianapolis' => 'America/Indiana/Indianapolis',
+        'America/Jujuy' => 'America/Argentina/Jujuy',
+        'America/Knox_IN' => 'America/Indiana/Knox',
+        'America/Louisville' => 'America/Kentucky/Louisville',
+        'America/Mendoza' => 'America/Argentina/Mendoza',
+        'America/Porto_Acre' => 'America/Rio_Branco',
+        'America/Rosario' => 'America/Argentina/Cordoba',
+        'America/Virgin' => 'America/Port_of_Spain',
+        'Asia/Ashkhabad' => 'Asia/Ashgabat',
+        'Asia/Calcutta' => 'Asia/Kolkata',
+        'Asia/Chungking' => 'Asia/Shanghai',
+        'Asia/Dacca' => 'Asia/Dhaka',
+        'Asia/Katmandu' => 'Asia/Kathmandu',
+        'Asia/Macao' => 'Asia/Macau',
+        'Asia/Saigon' => 'Asia/Ho_Chi_Minh',
+        'Asia/Tel_Aviv' => 'Asia/Jerusalem',
+        'Asia/Thimbu' => 'Asia/Thimphu',
+        'Asia/Ujung_Pandang' => 'Asia/Makassar',
+        'Asia/Ulan_Bator' => 'Asia/Ulaanbaatar',
+        'Atlantic/Faeroe' => 'Atlantic/Faroe',
+        'Atlantic/Jan_Mayen' => 'Europe/Oslo',
+        'Australia/ACT' => 'Australia/Sydney',
+        'Australia/Canberra' => 'Australia/Sydney',
+        'Australia/LHI' => 'Australia/Lord_Howe',
+        'Australia/NSW' => 'Australia/Sydney',
+        'Australia/North' => 'Australia/Darwin',
+        'Australia/Queensland' => 'Australia/Brisbane',
+        'Australia/South' => 'Australia/Adelaide',
+        'Australia/Tasmania' => 'Australia/Hobart',
+        'Australia/Victoria' => 'Australia/Melbourne',
+        'Australia/West' => 'Australia/Perth',
+        'Australia/Yancowinna' => 'Australia/Broken_Hill',
+        'Brazil/Acre' => 'America/Rio_Branco',
+        'Brazil/DeNoronha' => 'America/Noronha',
+        'Brazil/East' => 'America/Sao_Paulo',
+        'Brazil/West' => 'America/Manaus',
+        'Canada/Atlantic' => 'America/Halifax',
+        'Canada/Central' => 'America/Winnipeg',
+        'Canada/East-Saskatchewan' => 'America/Regina',
+        'Canada/Eastern' => 'America/Toronto',
+        'Canada/Mountain' => 'America/Edmonton',
+        'Canada/Newfoundland' => 'America/St_Johns',
+        'Canada/Pacific' => 'America/Vancouver',
+        'Canada/Saskatchewan' => 'America/Regina',
+        'Canada/Yukon' => 'America/Whitehorse',
+        'Chile/Continental' => 'America/Santiago',
+        'Chile/EasterIsland' => 'Pacific/Easter',
+        'Cuba' => 'America/Havana',
+        'Egypt' => 'Africa/Cairo',
+        'Eire' => 'Europe/Dublin',
+        'Europe/Belfast' => 'Europe/London',
+        'Europe/Tiraspol' => 'Europe/Chisinau',
+        'GB' => 'Europe/London',
+        'GB-Eire' => 'Europe/London',
+        'Greenwich' => 'Etc/GMT',
+        'Hongkong' => 'Asia/Hong_Kong',
+        'Iceland' => 'Atlantic/Reykjavik',
+        'Iran' => 'Asia/Tehran',
+        'Israel' => 'Asia/Jerusalem',
+        'Jamaica' => 'America/Jamaica',
+        'Japan' => 'Asia/Tokyo',
+        'Kwajalein' => 'Pacific/Kwajalein',
+        'Libya' => 'Africa/Tripoli',
+        'Mexico/BajaNorte' => 'America/Tijuana',
+        'Mexico/BajaSur' => 'America/Mazatlan',
+        'Mexico/General' => 'America/Mexico_City',
+        'NZ' => 'Pacific/Auckland',
+        'NZ-CHAT' => 'Pacific/Chatham',
+        'Navajo' => 'America/Denver',
+        'PRC' => 'Asia/Shanghai',
+        'Pacific/Ponape' => 'Pacific/Pohnpei',
+        'Pacific/Samoa' => 'Pacific/Pago_Pago',
+        'Pacific/Truk' => 'Pacific/Chuuk',
+        'Pacific/Yap' => 'Pacific/Chuuk',
+        'Poland' => 'Europe/Warsaw',
+        'Portugal' => 'Europe/Lisbon',
+        'ROC' => 'Asia/Taipei',
+        'ROK' => 'Asia/Seoul',
+        'Singapore' => 'Asia/Singapore',
+        'Turkey' => 'Europe/Istanbul',
+        'UCT' => 'Etc/UCT',
+        'US/Alaska' => 'America/Anchorage',
+        'US/Aleutian' => 'America/Adak',
+        'US/Arizona' => 'America/Phoenix',
+        'US/Central' => 'America/Chicago',
+        'US/East-Indiana' => 'America/Indiana/Indianapolis',
+        'US/Eastern' => 'America/New_York',
+        'US/Hawaii' => 'Pacific/Honolulu',
+        'US/Indiana-Starke' => 'America/Indiana/Knox',
+        'US/Michigan' => 'America/Detroit',
+        'US/Mountain' => 'America/Denver',
+        'US/Pacific' => 'America/Los_Angeles',
+        'US/Samoa' => 'Pacific/Pago_Pago',
+        'Universal' => 'Etc/UTC',
+        'W-SU' => 'Europe/Moscow',
+        'Zulu' => 'Etc/UTC',
+    );
 
     // mapping table for valid PHP timezones not supported by libkolabxml
     // basically the entire list of ftp://ftp.iana.org/tz/data/backward
@@ -223,7 +334,7 @@ abstract class kolab_format
                 if ($tz) $datetime->setTimezone($tz);
             }
             else if (is_string($datetime) && strlen($datetime)) {
-                $datetime = new DateTime($datetime, $tz ?: null);
+                $datetime = $tz ? new DateTime($datetime, $tz) : new DateTime($datetime);
             }
         }
         catch (Exception $e) {}
@@ -290,7 +401,7 @@ abstract class kolab_format
      * Convert a libkolabxml vector to a PHP array
      *
      * @param object vector Object
-     * @return array Indexed array contaning vector elements
+     * @return array Indexed array containing vector elements
      */
     public static function vector2array($vec, $max = PHP_INT_MAX)
     {
@@ -362,7 +473,8 @@ abstract class kolab_format
                 break;
             case kolabformat::Warning:
                 $ret = false;
-                $log = "Warning";
+                $uid = is_object($this->obj) ? $this->obj->uid() : $this->data['uid'];
+                $log = "Warning @ $uid";
                 break;
             default:
                 $ret = true;
@@ -618,5 +730,81 @@ abstract class kolab_format
     public function get_words()
     {
         return array();
+    }
+
+    /**
+     * Utility function to extract object attachment data
+     *
+     * @param array Hash array reference to append attachment data into
+     */
+    public function get_attachments(&$object)
+    {
+        $this->init();
+
+        // handle attachments
+        $vattach = $this->obj->attachments();
+        for ($i=0; $i < $vattach->size(); $i++) {
+            $attach = $vattach->get($i);
+
+            // skip cid: attachments which are mime message parts handled by kolab_storage_folder
+            if (substr($attach->uri(), 0, 4) != 'cid:' && $attach->label()) {
+                $name    = $attach->label();
+                $key     = $name . (isset($object['_attachments'][$name]) ? '.'.$i : '');
+                $content = $attach->data();
+                $object['_attachments'][$key] = array(
+                    'id'       => 'i:'.$i,
+                    'name'     => $name,
+                    'mimetype' => $attach->mimetype(),
+                    'size'     => strlen($content),
+                    'content'  => $content,
+                );
+            }
+            else if (in_array(substr($attach->uri(), 0, 4), array('http','imap'))) {
+                $object['links'][] = $attach->uri();
+            }
+        }
+    }
+
+    /**
+     * Utility function to set attachment properties to the kolabformat object
+     *
+     * @param array  Object data as hash array
+     * @param boolean True to always overwrite attachment information
+     */
+    protected function set_attachments($object, $write = true)
+    {
+        // save attachments
+        $vattach = new vectorattachment;
+        foreach ((array) $object['_attachments'] as $cid => $attr) {
+            if (empty($attr))
+                continue;
+            $attach = new Attachment;
+            $attach->setLabel((string)$attr['name']);
+            $attach->setUri('cid:' . $cid, $attr['mimetype'] ?: 'application/octet-stream');
+            if ($attach->isValid()) {
+                $vattach->push($attach);
+                $write = true;
+            }
+            else {
+                rcube::raise_error(array(
+                    'code' => 660,
+                    'type' => 'php',
+                    'file' => __FILE__,
+                    'line' => __LINE__,
+                    'message' => "Invalid attributes for attachment $cid: " . var_export($attr, true),
+                ), true);
+            }
+        }
+
+        foreach ((array) $object['links'] as $link) {
+            $attach = new Attachment;
+            $attach->setUri($link, 'unknown');
+            $vattach->push($attach);
+            $write = true;
+        }
+
+        if ($write) {
+            $this->obj->setAttachments($vattach);
+        }
     }
 }

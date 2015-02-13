@@ -35,14 +35,13 @@ function kolab_activesync_config()
   if (rcmail.gui_objects.devicelist) {
     var devicelist = new rcube_list_widget(rcmail.gui_objects.devicelist,
       { multiselect:true, draggable:false, keyboard:true });
-    devicelist.addEventListener('select', select_device);
-    devicelist.init();
+    devicelist.addEventListener('select', select_device).init().focus();
 
     // load frame if there are no devices
     if (!rcmail.env.devicecount)
       device_select();
   }
-  else {
+  else if (rcmail.env.action != 'edit-folder') {
     if (rcmail.env.active_device)
       rcmail.enable_command('plugin.save-config', true);
 
@@ -56,14 +55,16 @@ function kolab_activesync_config()
         $('#'+this.id+'_alarm').prop('checked', false);
     });
 
-    $('.subscriptionblock thead td.subscription img, .subscriptionblock thead td.alarm img').click(function(e) {
-      var $this = $(this),
-        classname = $this.parent().get(0).className,
-        list = $this.closest('table').find('input.'+classname),
+    var fn = function(elem) {
+      var classname = elem.className,
+        list = $(elem).closest('table').find('input.' + classname),
         check = list.not(':checked').length > 0;
 
       list.prop('checked', check).change();
-    });
+    };
+
+    $('th.subscription,th.alarm').click(function() { fn(this); })
+      .keydown(function(e) { if (e.which == 13 || e.which == 32) fn(this); });
   }
 
   /* private methods */
@@ -109,8 +110,6 @@ function kolab_activesync_config()
       cmd: 'save',
       id: rcmail.env.active_device,
       devicealias: $('#config-device-alias').val()
-//      syncmode: $('#config-device-mode option:selected').val(),
-//      laxpic: $('#config-device-laxpic').get(0).checked ? 1 : 0
     };
 
     if (data.devicealias == data.id)
@@ -156,30 +155,37 @@ function kolab_activesync_config()
   this.update_list = function(id, name)
   {
     $('#devices-table tr.selected span.devicealias').html(name);
-  }
+  };
+
+  this.update_sync_data = function(elem)
+  {
+    elem.name.match(/^_(subscriptions|alarms)\[(.+)\]$/);
+
+    var flag, type = RegExp.$1, device = RegExp.$2,
+        http_lock = rcmail.set_busy(true, 'kolab_activesync.savingdata');
+
+    // set subscription flag
+    if (elem.checked) {
+      flag = type == 'alarms' ? 2 : 1;
+    }
+    else {
+      flag = type == 'alarms' ? 1 : 0;
+    }
+
+    // make sure subscription checkbox is checked if alarms is checked
+    if (flag == 2) {
+      $('input[name="_subscriptions[' + device + ']"]').prop('checked', true);
+    }
+    // make sure alarms checkbox is unchecked if subscription is unchecked
+    else if (flag == 0) {
+      $('input[name="_alarms[' + device + ']"]').prop('checked', false);
+    }
+
+    // send the request
+    rcmail.http_post('plugin.activesync-json', {cmd: 'update', id: device, flag: flag, folder: rcmail.env.folder}, http_lock);
+  };
 };
 
-
 window.rcmail && rcmail.addEventListener('init', function(evt) {
-  // add button to tabs list
-  var tab = $('<span>').attr('id', 'settingstabpluginactivesync').addClass('tablink'),
-    button = $('<a>').attr('href', rcmail.env.comm_path+'&_action=plugin.activesync')
-      .html(rcmail.gettext('tabtitle', 'kolab_activesync'))
-      .appendTo(tab);
-  rcmail.add_element(tab, 'tabs');
-
-  if (/^plugin.activesync/.test(rcmail.env.action))
-    activesync_object = new kolab_activesync_config();
+  activesync_object = new kolab_activesync_config();
 });
-
-
-// extend jQuery
-(function($){
-  $.fn.serializeJSON = function(){
-    var json = {};
-    jQuery.map($(this).serializeArray(), function(n, i) {
-      json[n['name']] = n['value'];
-    });
-    return json;
-  };
-})(jQuery);

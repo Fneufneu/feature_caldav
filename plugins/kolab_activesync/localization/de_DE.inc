@@ -1,13 +1,8 @@
 <?php
-
-$labels = array();
 $labels['tabtitle'] = 'Activesync';
+$labels['activesynctitle'] = 'Verwalte Activesync-Geräte';
 $labels['devices'] = 'Geräte';
 $labels['devicealias'] = 'Gerätename';
-$labels['syncmode'] = 'Modus';
-$labels['modeauto'] = 'Automatisch';
-$labels['modeflat'] = 'Flache Struktur erzwingen';
-$labels['modefolder'] = 'Ordnerstruktur erzwingen';
 $labels['synchronize'] = 'Synchronisieren';
 $labels['withalarms'] = 'Mit Erinnerungen';
 $labels['syncsettings'] = 'Synchronisationseinstellungen';
@@ -18,14 +13,21 @@ $labels['contact'] = 'Kontakte';
 $labels['event'] = 'Kalender';
 $labels['task'] = 'Aufgaben';
 $labels['note'] = 'Notizen';
+$labels['configuration'] = 'Konfiguration';
 $labels['deletedevice'] = 'Gerät löschen';
-$labels['imageformat'] = 'Bildformat';
-$labels['laxpiclabel'] = 'PNG- und GIF-Bilder erlauben';
-$labels['nodevices'] = 'Es sind noch keine Geräte registriert.<br/><br/>Um ein neues Gerät anzumelden, verbinden Sie dieses zuerst mit dem Server. Eine Anleitung dazu finden Sie im <a href="http://wiki.kolab.org/Setup_ActiveSync">Wiki</a>. Anschliessend laden Sie diese Seite neu und das Gerät wird hier aufgelistet.';
+$labels['nodevices'] = 'Es sind aktuell keine Geräte registriert.<br/><br/>Um ein Gerät hinzuzufügen, verbinden sie es zuerst mit dem Server durch Verwenden der Anleitung im Wiki: <a href="http://wiki.kolab.org/Setup_ActiveSync"></a>. Im Anschluss sollte das Gerät auf dieser Seite zur Konfiguration zur Verfügung stehen.';
 $labels['savingdata'] = 'Daten werden gespeichert...';
 $labels['savingerror'] = 'Fehler beim Speichern';
 $labels['notsupported'] = 'Ihr Server unterstützt keine Activesync-Konfiguration';
 $labels['devicedeleteconfirm'] = 'Wollen Sie wirklich alle Einstellungen für dieses Gerät löschen?';
 $labels['successfullydeleted'] = 'Die Geräteinstellungen wurden erfolgreich gelöscht';
-
+$labels['devicenotfound'] = 'Es kann nicht auf die Gerätekonfiguration zugegriffen werden.';
+$labels['devicetype'] = 'Gerätetyp';
+$labels['acsversion'] = 'Protokollversion';
+$labels['useragent'] = 'User Agent';
+$labels['friendlyname'] = 'Lesbarer Name';
+$labels['os'] = 'Betriebssystem';
+$labels['oslanguage'] = 'Betriebssystemsprache';
+$labels['phonenumber'] = 'Telefonnummer';
+$labels['arialabeldeviceframe'] = 'Formular für die Einstellungen zur Gerätesynchronisation';
 ?>

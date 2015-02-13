@@ -4,14 +4,41 @@
 *
 * Examples and documentation at: tagedit.webwork-albrecht.de
 *
-* Copyright (c) 2010 Oliver Albrecht <info@webwork-albrecht.de>
-*
 * License:
 * This work is licensed under a MIT License
-* http://www.opensource.org/licenses/mit-license.php
+*
+* @licstart  The following is the entire license notice for the
+* JavaScript code in this file.
+*
+* Copyright (c) 2010 Oliver Albrecht <info@webwork-albrecht.de>
+* Copyright (c) 2014 Thomas Brüderli <thomas@roundcube.net>
+*
+* Licensed under the MIT licenses
+*
+* Permission is hereby granted, free of charge, to any person obtaining
+* a copy of this software and associated documentation files (the
+* "Software"), to deal in the Software without restriction, including
+* without limitation the rights to use, copy, modify, merge, publish,
+* distribute, sublicense, and/or sell copies of the Software, and to
+* permit persons to whom the Software is furnished to do so, subject to
+* the following conditions:
+*
+* The above copyright notice and this permission notice shall be
+* included in all copies or substantial portions of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+* NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+* LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+* OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+* WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*
+* @licend  The above is the entire license notice
+* for the JavaScript code in this file.
 *
 * @author Oliver Albrecht Mial: info@webwork-albrecht.de Twitter: @webworka
-* @version 1.2.1 (11/2011)
+* @version 1.5.2 (06/2014)
 * Requires: jQuery v1.4+, jQueryUI v1.8+, jQuerry.autoGrowInput
 *
 * Example of usage:
@@ -52,6 +79,7 @@
 		options = $.extend(true, {
 			// default options here
 			autocompleteURL: null,
+			checkToDeleteURL: null,
 			deletedPostfix: '-d',
 			addedPostfix: '-a',
 			additionalListClass: '',
@@ -67,14 +95,15 @@
 				}
 			},
 			breakKeyCodes: [ 13, 44 ],
-            checkNewEntriesCaseSensitive: false,
+			checkNewEntriesCaseSensitive: false,
 			texts: {
 				removeLinkTitle: 'Remove from list.',
 				saveEditLinkTitle: 'Save changes.',
 				deleteLinkTitle: 'Delete this tag from database.',
 				deleteConfirmation: 'Are you sure to delete this entry?',
 				deletedElementTitle: 'This Element will be deleted.',
-				breakEditLinkTitle: 'Cancel'
+				breakEditLinkTitle: 'Cancel',
+                forceDeleteConfirmation: 'There are more records using this tag, are you sure do you want to remove it?'
 			},
 			tabindex: false
 		}, options || {});
@@ -96,6 +125,7 @@
 		}
 
 		var elements = this;
+		var focusItem = null;
 
 		var baseNameRegexp = new RegExp("^(.*)\\[([0-9]*?("+options.deletedPostfix+"|"+options.addedPostfix+")?)?\]$", "i");
 
@@ -124,16 +154,18 @@
 		function inputsToList() {
 			var html = '<ul class="tagedit-list '+options.additionalListClass+'">';
 
-			elements.each(function() {
+			elements.each(function(i) {
 				var element_name = $(this).attr('name').match(baseNameRegexp);
 				if(element_name && element_name.length == 4 && (options.deleteEmptyItems == false || $(this).val().length > 0)) {
 					if(element_name[1].length > 0) {
-						var elementId = typeof element_name[2] != 'undefined'? element_name[2]: '';
+						var elementId = typeof element_name[2] != 'undefined'? element_name[2]: '',
+							domId = 'tagedit-' + baseName + '-' + (elementId || i);
 
-						html += '<li class="tagedit-listelement tagedit-listelement-old">';
-						html += '<span dir="'+options.direction+'">' + $(this).val() + '</span>';
+						html += '<li class="tagedit-listelement tagedit-listelement-old" aria-labelledby="'+domId+'">';
+						html += '<span dir="'+options.direction+'" id="'+domId+'">' + $(this).val() + '</span>';
 						html += '<input type="hidden" name="'+baseName+'['+elementId+']" value="'+$(this).val()+'" />';
-						html += '<a class="tagedit-close" title="'+options.texts.removeLinkTitle+'">x</a>';
+						if (options.allowDelete)
+							html += '<a class="tagedit-close" title="'+options.texts.removeLinkTitle+'" aria-label="'+options.texts.removeLinkTitle+' '+$(this).val()+'">x</a>';
 						html += '</li>';
 					}
 				}
@@ -155,7 +187,8 @@
 			// put an input field at the End
 			// Put an empty element at the end
 			html = '<li class="tagedit-listelement tagedit-listelement-new">';
-			html += '<input type="text" name="'+baseName+'[]" value="" id="tagedit-input" disabled="disabled" class="tagedit-input-disabled" dir="'+options.direction+'"/>';
+			if (options.allowAdd)
+				html += '<input type="text" name="'+baseName+'[]" value="" id="tagedit-input" disabled="disabled" class="tagedit-input-disabled" dir="'+options.direction+'"/>';
 			html += '</li>';
 			html += '</ul>';
 
@@ -169,27 +202,28 @@
 					.each(function() {
 						$(this).autoGrowInput({comfortZone: 15, minWidth: 15, maxWidth: 20000});
 
-						// Event ist triggert in case of choosing an item from the autocomplete, or finish the input
+						// Event is triggert in case of choosing an item from the autocomplete, or finish the input
 						$(this).bind('transformToTag', function(event, id) {
-							var oldValue = (typeof id != 'undefined' && id.length > 0);
+							var oldValue = (typeof id != 'undefined' && (id.length > 0 || id > 0));
 
-							var checkAutocomplete = oldValue == true? false : true;
+							var checkAutocomplete = oldValue == true || options.autocompleteOptions.noCheck ? false : true;
 							// check if the Value ist new
 							var isNewResult = isNew($(this).val(), checkAutocomplete);
-							if(isNewResult[0] === true || isNewResult[1] != null) {
+							if(isNewResult[0] === true || (isNewResult[0] === false && typeof isNewResult[1] == 'string')) {
 
-								if(oldValue == false && isNewResult[1] != null) {
+								if(oldValue == false && typeof isNewResult[1] == 'string') {
 									oldValue = true;
 									id = isNewResult[1];
 								}
 
 								if(options.allowAdd == true || oldValue) {
+									var domId = 'tagedit-' + baseName + '-' + id;
 									// Make a new tag in front the input
-									html = '<li class="tagedit-listelement tagedit-listelement-old">';
-									html += '<span dir="'+options.direction+'">' + $(this).val() + '</span>';
+									html = '<li class="tagedit-listelement tagedit-listelement-old" aria-labelledby="'+domId+'">';
+									html += '<span dir="'+options.direction+'" id="'+domId+'">' + $(this).val() + '</span>';
 									var name = oldValue? baseName + '['+id+options.addedPostfix+']' : baseName + '[]';
 									html += '<input type="hidden" name="'+name+'" value="'+$(this).val()+'" />';
-									html += '<a class="tagedit-close" title="'+options.texts.removeLinkTitle+'">x</a>';
+									html += '<a class="tagedit-close" title="'+options.texts.removeLinkTitle+'" aria-label="'+options.texts.removeLinkTitle+' '+$(this).val()+'">x</a>';
 									html += '</li>';
 
 									$(this).parent().before(html);
@@ -199,7 +233,8 @@
 
 							// close autocomplete
 							if(options.autocompleteOptions.source) {
-								$(this).autocomplete( "close" );
+								if($(this).is(':ui-autocomplete'))
+									$(this).autocomplete( "close" );
 							}
 
 						})
@@ -207,8 +242,19 @@
 							var code = event.keyCode > 0? event.keyCode : event.which;
 
 							switch(code) {
+								case 46:
+									if (!focusItem)
+										break;
 								case 8: // BACKSPACE
-									if($(this).val().length == 0) {
+									if(focusItem) {
+										focusItem.fadeOut(options.animSpeed, function() {
+											$(this).remove();
+										})
+										unfocusItem();
+										event.preventDefault();
+										return false;
+									}
+									else if($(this).val().length == 0) {
 										// delete Last Tag
 										var elementToRemove = elements.find('li.tagedit-listelement-old').last();
 										elementToRemove.fadeOut(options.animSpeed, function() {elementToRemove.remove();})
@@ -222,7 +268,41 @@
 										event.preventDefault();
 										return false;
 									}
-								break;
+									break;
+								case 37: // LEFT
+								case 39: // RIGHT
+									if($(this).val().length == 0) {
+										// select previous Tag
+										var inc = code == 37 ? -1 : 1,
+											items = elements.find('li.tagedit-listelement-old')
+											x = items.length, next = 0;
+										items.each(function(i, elem) {
+											if ($(elem).hasClass('tagedit-listelement-focus')) {
+												x = i;
+												return true;
+											}
+										});
+										unfocusItem();
+										next = Math.max(0, x + inc);
+										if (items.get(next)) {
+											focusItem = items.eq(next).addClass('tagedit-listelement-focus');
+											$(this).attr('aria-activedescendant', focusItem.attr('aria-labelledby'))
+
+											if(options.autocompleteOptions.source != false) {
+												$(this).autocomplete('close').autocomplete('disable');
+											}
+										}
+										event.preventDefault();
+										return false;
+									}
+									break;
+								default:
+									// ignore input if an item is focused
+									if (focusItem !== null) {
+										event.preventDefault();
+										event.bubble = false;
+										return false;
+									}
 							}
 							return true;
 						})
@@ -232,8 +312,11 @@
 								if($(this).val().length > 0 && $('ul.ui-autocomplete #ui-active-menuitem').length == 0) {
 									$(this).trigger('transformToTag');
 								}
-							event.preventDefault();
-							return false;
+								event.preventDefault();
+								return false;
+							}
+							else if($(this).val().length > 0){
+								unfocusItem();
 							}
 							return true;
 						})
@@ -255,9 +338,15 @@
 								var input = $(this);
 								$(this).data('blurtimer', window.setTimeout(function() {input.val('');}, 500));
 							}
+							unfocusItem();
+							// restore tabindex when widget looses focus
+							if (options.tabindex)
+								elements.attr('tabindex', options.tabindex);
 						})
 						.focus(function() {
 							window.clearTimeout($(this).data('blurtimer'));
+							// remove tabindex on <ul> because #tagedit-input now has it
+							elements.attr('tabindex', '-1');
 						});
 
 						if(options.autocompleteOptions.source != false) {
@@ -270,6 +359,7 @@
 						case 'A':
 							$(event.target).parent().fadeOut(options.animSpeed, function() {
 								$(event.target).parent().remove();
+								elements.find('#tagedit-input').focus();
 								});
 							break;
 						case 'INPUT':
@@ -288,8 +378,22 @@
 					}
 					return false;
 				})
-				// forward focus event
+				// forward focus event (on tabbing through the form)
 				.focus(function(e){ $(this).click(); })
+		}
+
+		/**
+		 * Remove class and reference to currently focused tag item
+		 */
+		function unfocusItem() {
+			if(focusItem){
+				if(options.autocompleteOptions.source != false) {
+					elements.find('#tagedit-input').autocomplete('enable');
+				}
+				focusItem.removeClass('tagedit-listelement-focus');
+				focusItem = null;
+				elements.find('#tagedit-input').removeAttr('aria-activedescendant');
+			}
 		}
 
 		/**
@@ -321,7 +425,7 @@
 				}
 
 				textfield.remove();
-				$(this).find('a.tagedit-save, a.tagedit-break, a.tagedit-delete, tester').remove(); // Workaround. This normaly has to be done by autogrow Plugin
+				$(this).find('a.tagedit-save, a.tagedit-break, a.tagedit-delete').remove(); // Workaround. This normaly has to be done by autogrow Plugin
 				$(this).removeClass('tagedit-listelement-edit').unbind('finishEdit');
 				return false;
 			});
@@ -356,7 +460,16 @@
 					.click(function() {
                         window.clearTimeout(closeTimer);
 						if(confirm(options.texts.deleteConfirmation)) {
-							markAsDeleted($(this).parent());
+                            var canDelete = checkToDelete($(this).parent());
+                            if (!canDelete && confirm(options.texts.forceDeleteConfirmation)) {
+                                markAsDeleted($(this).parent());
+                            }
+
+                            if(canDelete) {
+                                markAsDeleted($(this).parent());
+                            }
+
+                            $(this).parent().find(':text').trigger('finishEdit', [true]);
 						}
                         else {
                             $(this).parent().find(':text').trigger('finishEdit', [true]);
@@ -385,6 +498,42 @@
 						closeTimer = window.setTimeout(function() {that.parent().trigger('finishEdit', [true])}, 500);
 					});
 		}
+
+        /**
+         * Verifies if the tag select to be deleted is used by other records using an Ajax request.
+         *
+         * @param element
+         * @returns {boolean}
+         */
+        function checkToDelete(element) {
+            // if no URL is provide will not verify
+            if(options.checkToDeleteURL === null) {
+                return false;
+            }
+
+            var inputName = element.find('input:hidden').attr('name');
+            var idPattern = new RegExp('\\d');
+            var tagId = inputName.match(idPattern);
+            var checkResult = false;
+
+            $.ajax({
+                async   : false,
+                url     : options.checkToDeleteURL,
+                dataType: 'json',
+                type    : 'POST',
+                data    : { 'tagId' : tagId},
+                complete: function (XMLHttpRequest, textStatus) {
+
+                    // Expected JSON Object: { "success": Boolean, "allowDelete": Boolean}
+                    var result = $.parseJSON(XMLHttpRequest.responseText);
+                    if(result.success === true){
+                        checkResult = result.allowDelete;
+                    }
+                }
+            });
+
+            return checkResult;
+        }
 
 		/**
 		* Marks a single Tag as deleted.
@@ -451,12 +600,11 @@
 						}
 					});
 				}
-
+                
 				// If there is an entry for that already in the autocomplete, don't use it (Check could be case sensitive or not)
 				for (var i = 0; i < result.length; i++) {
-					var label = typeof result[i] == 'string' ? result[i] : result[i].label;
-					if (options.checkNewEntriesCaseSensitive == false)
-						label = label.toLowerCase();
+					var resultValue = result[i].label? result[i].label : result[i];
+					var label = options.checkNewEntriesCaseSensitive == true? resultValue : resultValue.toLowerCase();
 					if (label == compareValue) {
 						isNew = false;
 						autoCompleteId = typeof result[i] == 'string' ? i : result[i].id;
@@ -476,59 +624,59 @@
 // See related thread: http://stackoverflow.com/questions/931207/is-there-a-jquery-autogrow-plugin-for-text-fields
         
 $.fn.autoGrowInput = function(o) {
-	
-	o = $.extend({
-		maxWidth: 1000,
-		minWidth: 0,
-		comfortZone: 70
-	}, o);
-	
-	this.filter('input:text').each(function(){
-		
-		var minWidth = o.minWidth || $(this).width(),
-			val = '',
-			input = $(this),
-			testSubject = $('<tester/>').css({
-				position: 'absolute',
-				top: -9999,
-				left: -9999,
-				width: 'auto',
-				fontSize: input.css('fontSize'),
-				fontFamily: input.css('fontFamily'),
-				fontWeight: input.css('fontWeight'),
-				letterSpacing: input.css('letterSpacing'),
-				whiteSpace: 'nowrap'
-			}),
-			check = function() {
-				
-				if (val === (val = input.val())) {return;}
-				
-				// Enter new content into testSubject
-				var escaped = val.replace(/&/g, '&amp;').replace(/\s/g,'&nbsp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-				testSubject.html(escaped);
-				
-				// Calculate new width + whether to change
-				var testerWidth = testSubject.width(),
-					newWidth = (testerWidth + o.comfortZone) >= minWidth ? testerWidth + o.comfortZone : minWidth,
-					currentWidth = input.width(),
-					isValidWidthChange = (newWidth < currentWidth && newWidth >= minWidth)
-										 || (newWidth > minWidth && newWidth < o.maxWidth);
-				
-				// Animate width
-				if (isValidWidthChange) {
-					input.width(newWidth);
-				}
-				
-			};
-			
-		testSubject.insertAfter(input);
-		
-		$(this).bind('keyup keydown blur update', check);
-		
-		check();
-	});
-	
-	return this;
+    
+    o = $.extend({
+        maxWidth: 1000,
+        minWidth: 0,
+        comfortZone: 70
+    }, o);
+    
+    this.filter('input:text').each(function(){
+        
+        var minWidth = o.minWidth || $(this).width(),
+            val = '',
+            input = $(this),
+            testSubject = $('<tester/>').css({
+                position: 'absolute',
+                top: -9999,
+                left: -9999,
+                width: 'auto',
+                fontSize: input.css('fontSize'),
+                fontFamily: input.css('fontFamily'),
+                fontWeight: input.css('fontWeight'),
+                letterSpacing: input.css('letterSpacing'),
+                whiteSpace: 'nowrap'
+            }),
+            check = function() {
+                
+                if (val === (val = input.val())) {return;}
+                
+                // Enter new content into testSubject
+                var escaped = val.replace(/&/g, '&amp;').replace(/\s/g,'&nbsp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                testSubject.html(escaped);
+                
+                // Calculate new width + whether to change
+                var testerWidth = testSubject.width(),
+                    newWidth = (testerWidth + o.comfortZone) >= minWidth ? testerWidth + o.comfortZone : minWidth,
+                    currentWidth = input.width(),
+                    isValidWidthChange = (newWidth < currentWidth && newWidth >= minWidth)
+                                         || (newWidth > minWidth && newWidth < o.maxWidth);
+                
+                // Animate width
+                if (isValidWidthChange) {
+                    input.width(newWidth);
+                }
+                
+            };
+            
+        testSubject.insertAfter(input);
+        
+        $(this).bind('keyup keydown blur update', check);
+        
+        check();
+    });
+    
+    return this;
 
 };
 

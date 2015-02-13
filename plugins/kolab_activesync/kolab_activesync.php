@@ -7,7 +7,7 @@
  * @author Aleksander Machniak <machniak@kolabsys.com>
  * @author Thomas Bruederli <bruederli@kolabsys.com>
  *
- * Copyright (C) 2011-2012, Kolab Systems AG <contact@kolabsys.com>
+ * Copyright (C) 2011-2013, Kolab Systems AG <contact@kolabsys.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -52,8 +52,69 @@ class kolab_activesync extends rcube_plugin
         $this->register_action('plugin.activesync-config', array($this, 'config_frame'));
         $this->register_action('plugin.activesync-json', array($this, 'json_command'));
 
-        $this->add_texts('localization/', true);
-        $this->include_script('kolab_activesync.js');
+        $this->add_hook('settings_actions', array($this, 'settings_actions'));
+        $this->add_hook('folder_form', array($this, 'folder_form'));
+
+        $this->add_texts('localization/');
+
+        if (preg_match('/^(plugin.activesync|edit-folder|save-folder)/', $this->rc->action)) {
+            $this->add_label('devicedeleteconfirm', 'savingdata');
+            $this->include_script('kolab_activesync.js');
+        }
+    }
+
+    /**
+     * Adds Activesync section in Settings
+     */
+    function settings_actions($args)
+    {
+        $args['actions'][] = array(
+            'action' => 'plugin.activesync',
+            'class'  => 'activesync',
+            'label'  => 'tabtitle',
+            'domain' => 'kolab_activesync',
+            'title'  => 'activesynctitle',
+        );
+
+        return $args;
+    }
+
+    /**
+     * Handler for folder info/edit form (folder_form hook).
+     * Adds ActiveSync section.
+     */
+    function folder_form($args)
+    {
+        $mbox_imap = $args['options']['name'];
+
+        // Edited folder name (empty in create-folder mode)
+        if (!strlen($mbox_imap)) {
+            return $args;
+        }
+
+        $devices = $this->list_devices();
+
+        // no registered devices
+        if (empty($devices)) {
+            return $args;
+        }
+
+        list($type, ) = explode('.', (string) kolab_storage::folder_type($mbox_imap));
+        if ($type && !in_array($type, array('mail', 'event', 'contact', 'task', 'note'))) {
+            return $args;
+        }
+
+        require_once $this->home . '/kolab_activesync_ui.php';
+        $this->ui = new kolab_activesync_ui($this);
+
+        if ($content = $this->ui->folder_options_table($mbox_imap, $devices, $type)) {
+            $args['form']['activesync'] = array(
+                'name'    => rcube::Q($this->gettext('tabtitle')),
+                'content' => $content,
+            );
+        }
+
+        return $args;
     }
 
     /**
@@ -61,20 +122,16 @@ class kolab_activesync extends rcube_plugin
      */
     public function json_command()
     {
-        $cmd  = get_input_value('cmd', RCUBE_INPUT_GPC);
-        $imei = get_input_value('id', RCUBE_INPUT_GPC);
+        $cmd  = rcube_utils::get_input_value('cmd', rcube_utils::INPUT_POST);
+        $imei = rcube_utils::get_input_value('id', rcube_utils::INPUT_POST);
 
         switch ($cmd) {
         case 'save':
             $devices       = $this->list_devices();
             $device        = $devices[$imei];
-            $subscriptions = (array) get_input_value('subscribed', RCUBE_INPUT_POST);
-            $devicealias   = get_input_value('devicealias', RCUBE_INPUT_POST, true);
-//            $syncmode     = intval(get_input_value('syncmode', RCUBE_INPUT_POST));
-//            $laxpic       = intval(get_input_value('laxpic', RCUBE_INPUT_POST));
+            $subscriptions = (array) rcube_utils::get_input_value('subscribed', rcube_utils::INPUT_POST);
+            $devicealias   = rcube_utils::get_input_value('devicealias', rcube_utils::INPUT_POST, true);
             $device['ALIAS'] = $devicealias;
-//            $device['MODE'] = $syncmode;
-//            $device['LAXPIC'] = $laxpic;
 
             $err = !$this->device_update($device, $imei);
 
@@ -111,6 +168,19 @@ class kolab_activesync extends rcube_plugin
             }
             else
                 $this->rc->output->show_message($this->gettext('savingerror'), 'error');
+
+            break;
+
+        case 'update':
+            $subscription = (int) rcube_utils::get_input_value('flag', rcube_utils::INPUT_POST);
+            $folder       = rcube_utils::get_input_value('folder', rcube_utils::INPUT_POST);
+
+            $err = !$this->folder_set($folder, $imei, $subscription);
+
+            if ($err)
+                $this->rc->output->show_message($this->gettext('savingerror'), 'error');
+            else
+                $this->rc->output->show_message($this->gettext('successfullysaved'), 'confirmation');
 
             break;
         }
@@ -162,7 +232,7 @@ class kolab_activesync extends rcube_plugin
         $this->register_handler('plugin.deviceconfigform', array($this->ui, 'device_config_form'));
         $this->register_handler('plugin.foldersubscriptions', array($this->ui, 'folder_subscriptions'));
 
-        $imei    = get_input_value('_id', RCUBE_INPUT_GPC);
+        $imei    = rcube_utils::get_input_value('_id', rcube_utils::INPUT_GPC);
         $devices = $this->list_devices();
 
         if ($device = $devices[$imei]) {
@@ -403,6 +473,15 @@ class kolab_activesync extends rcube_plugin
                         $this->folder_meta[$folder] = $meta;
                     }
                 }
+            }
+
+            // remove device data from syncroton database
+            $db    = $this->rc->get_dbh();
+            $table = $db->table_name('syncroton_device');
+
+            if (in_array($table, $db->list_tables())) {
+                $db->query("DELETE FROM $table WHERE owner_id = ? AND deviceid = ?",
+                    $this->rc->user->ID, $id);
             }
         }
 

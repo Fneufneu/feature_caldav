@@ -1,5 +1,13 @@
 <?php
 
+/**
+ * Localizations for the Kolab Address Book plugin
+ *
+ * Copyright (C) 2014, Kolab Systems AG
+ *
+ * For translation see https://www.transifex.com/projects/p/kolab/resource/kolab_addressbook/
+ */
+
 $labels = array();
 $labels['initials'] = 'Initials';
 $labels['profession'] = 'Profession';
@@ -22,6 +30,7 @@ $labels['settings'] = 'Settings';
 $labels['bookcreate'] = 'Create address book';
 $labels['bookedit'] = 'Edit address book';
 $labels['bookdelete'] = 'Delete address book';
+$labels['bookremove'] = 'Remove from list';
 $labels['bookproperties'] = 'Address book properties';
 $labels['bookname'] = 'Book name';
 $labels['parentbook'] = 'Superior book';
@@ -33,6 +42,14 @@ $labels['personalfirst'] = 'Personal address book(s) first';
 $labels['globalfirst'] = 'Global address book(s) first';
 $labels['personalonly'] = 'Personal address book(s) only';
 $labels['globalonly'] = 'Global address book(s) only';
+
+$labels['findaddressbooks'] = 'Find address books';
+$labels['searchterms'] = 'Search terms';
+$labels['listsearchresults'] = 'Additional address books';
+$labels['foldersearchform'] = 'Address book search form';
+$labels['foldersubscribe'] = 'List permanently';
+$labels['nraddressbooksfound'] = '$nr address books found';
+$labels['noaddressbooksfound'] = 'No address books found';
 
 $messages['bookdeleteconfirm']  = 'Do you really want to delete the selected address book and all contacts in it?';
 $messages['bookdeleting'] = 'Deleting address book...';

@@ -1,6 +1,15 @@
 <?php
 
+/**
+ * Localizations for the Kolab Files plugin
+ *
+ * Copyright (C) 2014, Kolab Systems AG
+ *
+ * For translation see https://www.transifex.com/projects/p/kolab/resource/kolab_files/
+ */
+
 $labels['files'] = 'Files';
+$labels['filepreview'] = 'File preview';
 $labels['saveall'] = 'Save all to cloud...';
 $labels['saveto'] = 'Save to cloud...';
 $labels['saveas'] = 'Save as:';
@@ -76,5 +85,21 @@ $labels['filemoveconfirm'] = 'This action is going to overwrite the destination 
 
 $labels['storepasswords'] = 'remember password';
 $labels['storepasswordsdesc'] = 'Stored passwords will be encrypted. Enable this if you do not want to be asked for the password on every login or you want this storage to be available via WebDAV.';
+
+$labels['arialabelsearchform'] = 'Files search form';
+$labels['arialabelquicksearchbox'] = 'Search input';
+$labels['arialabellistoptions'] = 'Files list options';
+$labels['arialabelfolderoptions'] = 'Folder actions';
+$labels['arialabelfileeditform'] = 'File editing form';
+$labels['arialabelfoldercreateform'] = 'Folder creation form';
+$labels['arialabelfoldereditform'] = 'Folder editing form';
+$labels['arialabelfoldermountform'] = 'External storage form';
+$labels['arialabelfolderauthform'] = 'External storage authentication form';
+$labels['arialabelfolderlist'] = 'Folder/Collection selection';
+$labels['arialabelfileselectdialog'] = 'File selection dialog';
+$labels['arialabelattachmentoptions'] = 'Attachment save options';
+$labels['arialabelfilesavedialog'] = 'File(s) saving dialog';
+$labels['arialabelfileprops'] = 'File properties';
+$labels['arialabelfilecontent'] = 'File content';
 
 ?>

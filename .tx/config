@@ -1,12 +1,54 @@
 [main]
 host = https://www.transifex.com
-lang_map = en: en_US, de: de_DE, es: es_ES, fr: fr_FR, ja: ja_JP, nl: nl_NL, cs: cs_CZ
+lang_map = en: en_US, de: de_DE, da: da_DK, es: es_ES, fi: fi_FI, fr: fr_FR, ja: ja_JP, nl: nl_NL, cs: cs_CZ
 type = PHP_ALT_ARRAY
 
 [kolab.calendar]
 file_filter = plugins/calendar/localization/<lang>.inc
 source_file = plugins/calendar/localization/en_US.inc
 source_lang = en_US
+
+[kolab-documentation.calendar-helpdocs--index]
+file_filter = plugins/calendar/helpdocs/locale/<lang>/LC_MESSAGES/index.po
+source_file = plugins/calendar/helpdocs/po/index.pot
+source_lang = en_US
+type = PO
+
+[kolab-documentation.calendar-helpdocs--importexport]
+file_filter = plugins/calendar/helpdocs/locale/<lang>/LC_MESSAGES/importexport.po
+source_file = plugins/calendar/helpdocs/po/importexport.pot
+source_lang = en_US
+type = PO
+
+[kolab-documentation.calendar-helpdocs--invitations]
+file_filter = plugins/calendar/helpdocs/locale/<lang>/LC_MESSAGES/invitations.po
+source_file = plugins/calendar/helpdocs/po/invitations.pot
+source_lang = en_US
+type = PO
+
+[kolab-documentation.calendar-helpdocs--manage]
+file_filter = plugins/calendar/helpdocs/locale/<lang>/LC_MESSAGES/manage.po
+source_file = plugins/calendar/helpdocs/po/manage.pot
+source_lang = en_US
+type = PO
+
+[kolab-documentation.calendar-helpdocs--overview]
+file_filter = plugins/calendar/helpdocs/locale/<lang>/LC_MESSAGES/overview.po
+source_file = plugins/calendar/helpdocs/po/overview.pot
+source_lang = en_US
+type = PO
+
+[kolab-documentation.calendar-helpdocs--settings]
+file_filter = plugins/calendar/helpdocs/locale/<lang>/LC_MESSAGES/settings.po
+source_file = plugins/calendar/helpdocs/po/settings.pot
+source_lang = en_US
+type = PO
+
+[kolab-documentation.calendar-helpdocs--sharing]
+file_filter = plugins/calendar/helpdocs/locale/<lang>/LC_MESSAGES/sharing.po
+source_file = plugins/calendar/helpdocs/po/sharing.pot
+source_lang = en_US
+type = PO
 
 [kolab.kolab_activesync]
 file_filter = plugins/kolab_activesync/localization/<lang>.inc
@@ -17,6 +59,12 @@ source_lang = en_US
 file_filter = plugins/kolab_addressbook/localization/<lang>.inc
 source_file = plugins/kolab_addressbook/localization/en_US.inc
 source_lang = en_US
+
+[kolab-documentation.kolab_addressbook-helpdocs--addressbook]
+file_filter = plugins/kolab_addressbook/helpdocs/locale/<lang>/LC_MESSAGES/addressbook.po
+source_file = plugins/kolab_addressbook/helpdocs/po/addressbook.pot
+source_lang = en_US
+type = PO
 
 [kolab.kolab_auth]
 file_filter = plugins/kolab_auth/localization/<lang>.inc
@@ -38,6 +86,16 @@ file_filter = plugins/kolab_folders/localization/<lang>.inc
 source_file = plugins/kolab_folders/localization/en_US.inc
 source_lang = en_US
 
+[kolab.kolab_notes]
+file_filter = plugins/kolab_notes/localization/<lang>.inc
+source_file = plugins/kolab_notes/localization/en_US.inc
+source_lang = en_US
+
+[kolab.kolab_tags]
+file_filter = plugins/kolab_tags/localization/<lang>.inc
+source_file = plugins/kolab_tags/localization/en_US.inc
+source_lang = en_US
+
 [kolab.owncloud]
 file_filter = plugins/owncloud/localization/<lang>.inc
 source_file = plugins/owncloud/localization/en_US.inc
@@ -47,6 +105,24 @@ source_lang = en_US
 file_filter = plugins/tasklist/localization/<lang>.inc
 source_file = plugins/tasklist/localization/en_US.inc
 source_lang = en_US
+
+[kolab-documentation.tasklist-helpdocs--index]
+file_filter = plugins/tasklist/helpdocs/locale/<lang>/LC_MESSAGES/index.po
+source_file = plugins/tasklist/helpdocs/po/index.pot
+source_lang = en_US
+type = PO
+
+[kolab-documentation.tasklist-helpdocs--manage]
+file_filter = plugins/tasklist/helpdocs/locale/<lang>/LC_MESSAGES/manage.po
+source_file = plugins/tasklist/helpdocs/po/manage.pot
+source_lang = en_US
+type = PO
+
+[kolab-documentation.tasklist-helpdocs--overview]
+file_filter = plugins/tasklist/helpdocs/locale/<lang>/LC_MESSAGES/overview.po
+source_file = plugins/tasklist/helpdocs/po/overview.pot
+source_lang = en_US
+type = PO
 
 [kolab.libcalendaring]
 file_filter = plugins/libcalendaring/localization/<lang>.inc

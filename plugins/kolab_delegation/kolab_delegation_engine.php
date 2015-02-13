@@ -67,7 +67,6 @@ class kolab_delegation_engine
         }
 
         $list = $this->list_delegates();
-        $user = $this->user();
 
         // add delegate to the list
         $list = array_keys((array)$list);
@@ -202,7 +201,7 @@ class kolab_delegation_engine
             return array();
         }
 
-        $list = $ldap->search($this->ldap_login_field, $login, 1);
+        $list = $ldap->dosearch($this->ldap_login_field, $login, 1);
 
         if (count($list) == 1) {
             $dn   = key($list);
@@ -240,6 +239,7 @@ class kolab_delegation_engine
         $this->ldap_org_field = $this->rc->config->get('kolab_auth_organization');
 
         $ldap->set_filter($this->ldap_filter);
+        $ldap->extend_fieldmap(array($this->ldap_delegate_field => $this->ldap_delegate_field));
 
         return $ldap;
     }
@@ -288,7 +288,7 @@ class kolab_delegation_engine
             return array();
         }
 
-        $list = $ldap->search($this->ldap_delegate_field, $this->ldap_dn, 1);
+        $list = $ldap->dosearch($this->ldap_delegate_field, $this->ldap_dn, 1);
 
         foreach ($list as $dn => $delegator) {
             $delegator = $this->parse_ldap_record($delegator, $dn);
@@ -423,8 +423,9 @@ class kolab_delegation_engine
         $mode   = (int) $this->rc->config->get('addressbook_search_mode');
         $fields = array_unique(array_filter(array_merge((array)$this->ldap_name_field, (array)$this->ldap_login_field)));
         $users  = array();
+        $keys   = array();
 
-        $result = $ldap->search($fields, $search, $mode, (array)$this->ldap_login_field, $max);
+        $result = $ldap->dosearch($fields, $search, $mode, (array)$this->ldap_login_field, $max);
 
         foreach ($result as $record) {
             // skip self
@@ -434,12 +435,23 @@ class kolab_delegation_engine
 
             $user = $this->parse_ldap_record($record);
 
-            if ($user['name']) {
-                $users[] = $user['name'];
+            if ($user['uid']) {
+                $display = rcube_addressbook::compose_search_name($record);
+                $user    = array('name' => $user['uid'], 'display' => $display);
+                $users[] = $user;
+                $keys[]  = $display ?: $user['uid'];
             }
         }
 
-        sort($users, SORT_LOCALE_STRING);
+        if (count($users)) {
+            // sort users index
+            asort($keys, SORT_LOCALE_STRING);
+            // re-sort users according to index
+            foreach (array_keys($keys) as $idx) {
+                $keys[$idx] = $users[$idx];
+            }
+            $users = array_values($keys);
+        }
 
         return $users;
     }
@@ -521,25 +533,10 @@ class kolab_delegation_engine
             }
 
             // Get current user record
-            $this->cache['user'] = $ldap->get_record($this->ldap_dn, true);
+            $this->cache['user'] = $ldap->get_record($this->ldap_dn);
         }
 
         return $parsed ? $this->parse_ldap_record($this->cache['user']) : $this->cache['user'];
-    }
-
-    /**
-     * Returns current user identities
-     *
-     * @return array List of identities
-     */
-    public function user_identities()
-    {
-        // cache result in-memory, we need it more than once
-        if ($this->identities === null) {
-            $this->identities = $this->rc->user->list_identities();
-        }
-
-        return $this->identities;
     }
 
     /**
@@ -584,7 +581,7 @@ class kolab_delegation_engine
 
         $delegators = $this->list_delegators();
         $use_subs   = $this->rc->config->get('kolab_use_subscriptions');
-        $identities = $this->user_identities();
+        $identities = $this->rc->user->list_emails();
         $emails     = array();
         $uids       = array();
 
@@ -599,10 +596,7 @@ class kolab_delegation_engine
             // get user name from default identity
             if (!$idx) {
                 $default = array(
-                    'name'           => $ident['name'],
-//                    'organization'   => $ident['organization'],
-//                    'signature'      => $ident['signature'],
-//                    'html_signature' => $ident['html_signature'],
+                    'name' => $ident['name'],
                 );
             }
             $emails[$ident['identity_id']] = $ident['email'];
@@ -726,7 +720,7 @@ class kolab_delegation_engine
             return;
         }
 
-        $identities = $this->user_identities();
+        $identities = $this->rc->user->list_emails();
         $emails     = $_SESSION['delegators'][$context];
 
         foreach ($identities as $ident) {
@@ -756,7 +750,7 @@ class kolab_delegation_engine
         }
         // return only user addresses (exclude all delegators addresses)
         else if (!empty($_SESSION['delegators'])) {
-            $identities = $this->user_identities();
+            $identities = $this->rc->user->list_emails();
             $emails[]   = $this->rc->user->get_username();
 
             foreach ($identities as $identity) {

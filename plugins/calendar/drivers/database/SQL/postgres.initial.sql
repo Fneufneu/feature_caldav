@@ -3,13 +3,12 @@
  *
  * Plugin to add a calendar to RoundCube.
  *
- * @version @package_version@
  * @author Lazlo Westerhof
  * @author Albert Lee
  * @author Aleksander Machniak <machniak@kolabsys.com>
- * @url http://rc-calendar.lazlo.me
  * @licence GNU AGPL
  * @copyright (c) 2010 Lazlo Westerhof - Netherlands
+ * @copyright (c) 2014 Kolab Systems AG
  *
  **/
 
@@ -51,15 +50,16 @@ CREATE TABLE events (
     "start" timestamp without time zone DEFAULT now() NOT NULL,
     "end" timestamp without time zone DEFAULT now() NOT NULL,
     recurrence varchar(255) DEFAULT NULL,
-    title character varying(255) NOT NULL,
-    description text NOT NULL,
-    location character varying(255) NOT NULL,
-    categories character varying(255) NOT NULL,
-    url character varying(255) NOT NULL,
+    title character varying(255) NOT NULL DEFAULT '',
+    description text NOT NULL DEFAULT '',
+    location character varying(255) NOT NULL DEFAULT '',
+    categories character varying(255) NOT NULL DEFAULT '',
+    url character varying(255) NOT NULL DEFAULT '',
     all_day smallint NOT NULL DEFAULT 0,
     free_busy smallint NOT NULL DEFAULT 0,
     priority smallint NOT NULL DEFAULT 0,
     sensitivity smallint NOT NULL DEFAULT 0,
+    status character varying(32) NOT NULL DEFAULT '',
     alarms varchar(255) DEFAULT NULL,
     attendees text DEFAULT NULL,
     notifyat timestamp without time zone DEFAULT NULL,
@@ -104,4 +104,4 @@ CREATE TABLE itipinvitations (
 
 CREATE INDEX itipinvitations_user_id_event_uid_idx ON itipinvitations (user_id, event_uid);
 
-INSERT INTO system (name, value) VALUES ('calendar-database-version', '2013051600');
+INSERT INTO system (name, value) VALUES ('calendar-database-version', '2014040900');

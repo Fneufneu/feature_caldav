@@ -28,17 +28,22 @@
 class kolab_auth_ldap extends rcube_ldap_generic
 {
     private $icache = array();
+    private $conf = array();
+    private $fieldmap = array();
 
 
     function __construct($p)
     {
         $rcmail = rcube::get_instance();
 
-        $this->debug    = (bool) $rcmail->config->get('ldap_debug');
+        $this->conf = $p;
+        $this->conf['kolab_auth_user_displayname'] = $rcmail->config->get('kolab_auth_user_displayname', '{name}');
+
         $this->fieldmap = $p['fieldmap'];
         $this->fieldmap['uid'] = 'uid';
 
         $p['attributes'] = array_values($this->fieldmap);
+        $p['debug']      = (bool) $rcmail->config->get('ldap_debug');
 
         // Connect to the server (with bind)
         parent::__construct($p);
@@ -52,8 +57,6 @@ class kolab_auth_ldap extends rcube_ldap_generic
     */
     private function _connect()
     {
-        $rcube = rcube::get_instance();
-
         // try to connect + bind for every host configured
         // with OpenLDAP 2.x ldap_connect() always succeeds but ldap_bind will fail if host isn't reachable
         // see http://www.php.net/manual/en/function.ldap-connect.php
@@ -154,7 +157,7 @@ class kolab_auth_ldap extends rcube_ldap_generic
         foreach ($result as $entry) {
             $entry = rcube_ldap_generic::normalize_entry($entry);
             if (!$entry['dn']) {
-                $entry['dn'] = $result->get_dn();
+                $entry['dn'] = key($result->entries(true));
             }
             $groups[$entry['dn']] = $entry[$name_attr];
         }
@@ -197,7 +200,9 @@ class kolab_auth_ldap extends rcube_ldap_generic
         foreach ($this->fieldmap as $field => $attr) {
             if (array_key_exists($field, $entry)) {
                 $entry[$attr] = $entry[$field];
-                unset($entry[$field]);
+                if ($attr != $field) {
+                    unset($entry[$field]);
+                }
             }
         }
 
@@ -213,13 +218,13 @@ class kolab_auth_ldap extends rcube_ldap_generic
      *                          0 - partial (*abc*),
      *                          1 - strict (=),
      *                          2 - prefix (abc*)
-     * @param boolean $select   True if results are requested, False if count only
      * @param array   $required List of fields that cannot be empty
      * @param int     $limit    Number of records
+     * @param int     $count    Returns the number of records found
      *
      * @return array List or false on error
      */
-    function search($fields, $value, $mode=1, $required = array(), $limit = 0)
+    function dosearch($fields, $value, $mode=1, $required = array(), $limit = 0, &$count = 0)
     {
         if (empty($fields)) {
             return array();
@@ -296,13 +301,15 @@ class kolab_auth_ldap extends rcube_ldap_generic
         $attrs   = array_values($this->fieldmap);
         $list    = array();
 
-        if ($result = parent::search($base_dn, $filter, $scope, $attrs)) {
+        if ($result = $this->search($base_dn, $filter, $scope, $attrs)) {
+            $count = $result->count();
             $i = 0;
             foreach ($result as $entry) {
                 if ($limit && $limit <= $i) {
                     break;
                 }
-                $dn        = $result->get_dn();
+
+                $dn        = $entry['dn'];
                 $entry     = rcube_ldap_generic::normalize_entry($entry);
                 $list[$dn] = $this->field_mapping($dn, $entry);
                 $i++;
@@ -337,6 +344,16 @@ class kolab_auth_ldap extends rcube_ldap_generic
             else if (isset($entry[$attr])) {
                 $entry[$field] = $entry[$attr];
             }
+        }
+
+        // compose display name according to config
+        if (empty($this->fieldmap['displayname'])) {
+            $entry['displayname'] = rcube_addressbook::compose_search_name(
+                $entry,
+                $entry['email'],
+                $entry['name'],
+                $this->conf['kolab_auth_user_displayname']
+            );
         }
 
         return $entry;
@@ -490,6 +507,19 @@ class kolab_auth_ldap extends rcube_ldap_generic
     public function get_parse_vars()
     {
         return $this->parse_replaces;
+    }
+
+    /**
+     * Register additional fields
+     */
+    public function extend_fieldmap($map)
+    {
+        foreach ((array)$map as $name => $attr) {
+            if (!in_array($attr, $this->attributes)) {
+                $this->attributes[]    = $attr;
+                $this->fieldmap[$name] = $attr;
+            }
+        }
     }
 
     /**

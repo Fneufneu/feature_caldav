@@ -37,7 +37,7 @@ class kolab_files_engine
      */
     public function __construct($plugin, $url)
     {
-        $this->url     = $url;
+        $this->url     = rcube_utils::resolve_url($url);
         $this->plugin  = $plugin;
         $this->rc      = $plugin->rc;
         $this->timeout = $this->rc->config->get('session_lifetime') * 60;
@@ -425,7 +425,7 @@ class kolab_files_engine
 
         $thead = '';
         foreach ($this->file_list_head($attrib, $a_show_cols) as $cell) {
-            $thead .= html::tag('td', array('class' => $cell['className'], 'id' => $cell['id']), $cell['html']);
+            $thead .= html::tag('th', array('class' => $cell['className'], 'id' => $cell['id']), $cell['html']);
         }
 
         return html::tag('table', $attrib,
@@ -459,14 +459,21 @@ class kolab_files_engine
             $a_sort_cols = $this->sort_cols;
 
         if (!empty($attrib['optionsmenuicon'])) {
-            $onclick = 'return ' . JS_OBJECT_NAME . ".command('menu-open', 'filelistmenu')";
-            if ($attrib['optionsmenuicon'] === true || $attrib['optionsmenuicon'] == 'true')
-                $list_menu = html::div(array('onclick' => $onclick, 'class' => 'listmenu',
-                    'id' => 'listmenulink', 'title' => $this->rc->gettext('listoptions')));
-            else
-                $list_menu = html::a(array('href' => '#', 'onclick' => $onclick),
-                    html::img(array('src' => $skin_path . $attrib['optionsmenuicon'],
-                        'id' => 'listmenulink', 'title' => $this->rc->gettext('listoptions'))));
+            $onclick = 'return ' . JS_OBJECT_NAME . ".command('menu-open', 'filelistmenu', this, event)";
+            $inner   = $this->rc->gettext('listoptions');
+
+            if (is_string($attrib['optionsmenuicon']) && $attrib['optionsmenuicon'] != 'true') {
+                $inner = html::img(array('src' => $skin_path . $attrib['optionsmenuicon'], 'alt' => $this->rc->gettext('listoptions')));
+            }
+
+            $list_menu = html::a(array(
+                'href'     => '#list-options',
+                'onclick'  => $onclick,
+                'class'    => 'listmenu',
+                'id'       => 'listmenulink',
+                'title'    => $this->rc->gettext('listoptions'),
+                'tabindex' => '0',
+            ), $inner);
         }
         else {
             $list_menu = '';
@@ -591,8 +598,9 @@ class kolab_files_engine
 
         $this->rc->output->add_gui_object('preview_frame', $attrib['id']);
 
-        $attrib['src']    = $href;
-        $attrib['onload'] = 'kolab_files_frame_load(this)';
+        $attrib['allowfullscreen'] = true;
+        $attrib['src']             = $href;
+        $attrib['onload']          = 'kolab_files_frame_load(this)';
 
         return html::iframe($attrib);
     }
@@ -758,10 +766,13 @@ class kolab_files_engine
             'fileskip', 'fileskipall', 'fileoverwrite', 'fileoverwriteall'
         );
 
+        $this->rc->output->add_label('uploadprogress', 'GB', 'MB', 'KB', 'B');
         $this->rc->output->set_pagetitle($this->plugin->gettext('files'));
         $this->rc->output->set_env('file_mimetypes', $this->get_mimetypes());
         $this->rc->output->set_env('files_quota', $_SESSION['kolab_files_caps']['QUOTA']);
         $this->rc->output->set_env('files_max_upload', $_SESSION['kolab_files_caps']['MAX_UPLOAD']);
+        $this->rc->output->set_env('files_progress_name', $_SESSION['kolab_files_caps']['PROGRESS_NAME']);
+        $this->rc->output->set_env('files_progress_time', $_SESSION['kolab_files_caps']['PROGRESS_TIME']);
         $this->rc->output->send('kolab_files.files');
     }
 
@@ -895,7 +906,7 @@ class kolab_files_engine
 
             // save attachment to file
             if ($fp = fopen($path, 'w+')) {
-                $message->get_part_content($attach_prop->mime_id, $fp, true);
+                $message->get_part_body($attach_prop->mime_id, false, 0, $fp);
             }
             else {
                 $errors[] = true;

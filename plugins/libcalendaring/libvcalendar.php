@@ -43,7 +43,8 @@ class libvcalendar implements Iterator
     private $attach_uri = null;
     private $prodid = '-//Roundcube//Roundcube libcalendaring//Sabre//Sabre VObject//EN';
     private $type_component_map = array('event' => 'VEVENT', 'task' => 'VTODO');
-    private $attendee_keymap = array('name' => 'CN', 'status' => 'PARTSTAT', 'role' => 'ROLE', 'cutype' => 'CUTYPE', 'rsvp' => 'RSVP');
+    private $attendee_keymap = array('name' => 'CN', 'status' => 'PARTSTAT', 'role' => 'ROLE',
+        'cutype' => 'CUTYPE', 'rsvp' => 'RSVP', 'delegated-from' => 'DELEGATED-FROM', 'delegated-to' => 'DELEGATED-TO');
     private $iteratorkey = 0;
     private $charset;
     private $forward_exceptions;
@@ -131,7 +132,7 @@ class libvcalendar implements Iterator
         try {
             // estimate the memory usage and try to avoid fatal errors when allowed memory gets exhausted
             if ($memcheck) {
-                $count = substr_count($vcal, 'BEGIN:VEVENT');
+                $count = substr_count($vcal, 'BEGIN:VEVENT') + substr_count($vcal, 'BEGIN:VTODO');
                 $expected_memory = $count * 70*1024;  // assume ~ 70K per event (empirically determined)
 
                 if (!rcube_utils::mem_check($expected_memory)) {
@@ -317,7 +318,7 @@ class libvcalendar implements Iterator
                     if (!$seen[$object['uid']]++) {
                         // parse recurrence exceptions
                         if ($object['recurrence']) {
-                            foreach ($vobject->children as $i => $component) {
+                            foreach ($vobject->children as $component) {
                                 if ($component->name == 'VEVENT' && isset($component->{'RECURRENCE-ID'})) {
                                     $object['recurrence']['EXCEPTIONS'][] = $this->_to_array($component);
                                 }
@@ -390,7 +391,6 @@ class libvcalendar implements Iterator
         }
 
         // map other attributes to internal fields
-        $_attendees = array();
         foreach ($ve->children as $prop) {
             if (!($prop instanceof VObject\Property))
                 continue;
@@ -414,8 +414,8 @@ class libvcalendar implements Iterator
                     $event['cancelled'] = true;
                 else if ($prop->value == 'COMPLETED')
                     $event['complete'] = 100;
-                else
-                    $event['status'] = strval($prop->value);
+
+                $event['status'] = strval($prop->value);
                 break;
 
             case 'PRIORITY':
@@ -453,8 +453,7 @@ class libvcalendar implements Iterator
                 break;
 
             case 'RELATED-TO':
-                $reltype = $prop->offsetGet('RELTYPE');
-                if ($reltype == 'PARENT' || $reltype === null) {
+                if ($prop->offsetGet('RELTYPE') == 'PARENT') {
                     $event['parent_id'] = $prop->value;
                 }
                 break;
@@ -470,6 +469,7 @@ class libvcalendar implements Iterator
             case 'LOCATION':
             case 'DESCRIPTION':
             case 'URL':
+            case 'COMMENT':
                 $event[strtolower($prop->name)] = self::convert_string($prop);
                 break;
 
@@ -552,8 +552,12 @@ class libvcalendar implements Iterator
                 $event['allday'] = true;
             }
 
+            // all-day events may lack the DTEND property
+            if ($event['allday'] && empty($event['end'])) {
+                $event['end'] = clone $event['start'];
+            }
             // shift end-date by one day (except Thunderbird)
-            if ($event['allday'] && is_object($event['end'])) {
+            else if ($event['allday'] && is_object($event['end'])) {
                 $event['end']->sub(new \DateInterval('PT23H'));
             }
 
@@ -564,7 +568,7 @@ class libvcalendar implements Iterator
         }
 
         // make organizer part of the attendees list for compatibility reasons
-        if (!empty($event['organizer']) && is_array($event['attendees'])) {
+        if (!empty($event['organizer']) && is_array($event['attendees']) && $event['_type'] == 'event') {
             array_unshift($event['attendees'], $event['organizer']);
         }
 
@@ -583,7 +587,6 @@ class libvcalendar implements Iterator
                             $alarm['trigger'] = $prop->getDateTime();
                         }
                     }
-
                     if (!$trigger && ($values = libcalendaring::parse_alaram_value($prop->value))) {
                         $trigger = $values[2];
                     }
@@ -612,6 +615,14 @@ class libvcalendar implements Iterator
 
                 case 'ATTENDEE':
                     $alarm['attendees'][] = preg_replace('/^mailto:/i', '', $prop->value);
+                    break;
+
+                case 'ATTACH':
+                    $params = self::parameters_array($prop);
+                    if (strlen($prop->value) && (preg_match('/^[a-z]+:/', $prop->value) || strtoupper($params['VALUE']) == 'URI')) {
+                        // we only support URI-type of attachments here
+                        $alarm['uri'] = $prop->value;
+                    }
                     break;
                 }
             }
@@ -663,9 +674,12 @@ class libvcalendar implements Iterator
                 continue;
 
             switch ($prop->name) {
+            case 'CREATED':
+            case 'LAST-MODIFIED':
+            case 'DTSTAMP':
             case 'DTSTART':
             case 'DTEND':
-                $propmap = array('DTSTART' => 'start', 'DTEND' => 'end');
+                $propmap = array('DTSTART' => 'start', 'DTEND' => 'end', 'CREATED' => 'created', 'LAST-MODIFIED' => 'changed', 'DTSTAMP' => 'changed');
                 $this->freebusy[$propmap[$prop->name]] =  self::convert_datetime($prop);
                 break;
 
@@ -812,7 +826,7 @@ class libvcalendar implements Iterator
         $out = array();
         foreach ($map as $from => $to) {
             if (isset($values[$from]))
-                $out[$to] = $values[$from];
+                $out[$to] = is_array($values[$from]) ? join(',', $values[$from]) : $values[$from];
         }
         return $out;
     }
@@ -842,7 +856,6 @@ class libvcalendar implements Iterator
      */
     public function export($objects, $method = null, $write = false, $get_attachment = false, $with_timezones = true)
     {
-        $memory_limit = parse_bytes(ini_get('memory_limit'));
         $this->method = $method;
 
         // encapsulate in VCALENDAR container
@@ -935,7 +948,7 @@ class libvcalendar implements Iterator
         if ($event['description'])
             $ve->add('DESCRIPTION', strtr($event['description'], array("\r\n" => "\n", "\r" => "\n"))); // normalize line endings
 
-        if ($event['sequence'])
+        if (isset($event['sequence']))
             $ve->add('SEQUENCE', $event['sequence']);
 
         if ($event['recurrence'] && !$recurrence_id) {
@@ -1033,6 +1046,9 @@ class libvcalendar implements Iterator
                     $va->add('DURATION', $alarm['duration']);
                     $va->add('REPEAT', intval($alarm['repeat']));
                 }
+                if ($alarm['uri']) {
+                    $va->add('ATTACH', $alarm['uri'], array('VALUE' => 'URI'));
+                }
                 $ve->add($va);
             }
         }
@@ -1041,9 +1057,10 @@ class libvcalendar implements Iterator
             $va = VObject\Component::create('VALARM');
             list($trigger, $va->action) = explode(':', $event['alarms']);
             $val = libcalendaring::parse_alaram_value($trigger);
-            $period = $val[1] && preg_match('/[HMS]$/', $val[1]) ? 'PT' : 'P';
-            if ($val[1]) $va->add('TRIGGER', preg_replace('/^([-+])P?T?(.+)/', "\\1$period\\2", $trigger));
-            else         $va->add('TRIGGER', gmdate('Ymd\THis\Z', $val[0]), array('VALUE' => 'DATE-TIME'));
+            if ($val[3])
+                $va->add('TRIGGER', $val[3]);
+            else if ($val[0] instanceof DateTime)
+                $va->add($this->datetime_prop('TRIGGER', $val[0]));
             $ve->add($va);
         }
 
@@ -1053,7 +1070,8 @@ class libvcalendar implements Iterator
                     $event['organizer'] = $attendee;
             }
             else if (!empty($attendee['email'])) {
-                $attendee['rsvp'] = $attendee['rsvp'] ? 'TRUE' : null;
+                if (isset($attendee['rsvp']))
+                    $attendee['rsvp'] = $attendee['rsvp'] ? 'TRUE' : 'FALSE';
                 $ve->add('ATTENDEE', 'mailto:' . $attendee['email'], array_filter(self::map_keys($attendee, $this->attendee_keymap)));
             }
         }
@@ -1072,10 +1090,16 @@ class libvcalendar implements Iterator
             $ve->add('RELATED-TO', $event['parent_id'], array('RELTYPE' => 'PARENT'));
         }
 
+        if ($event['comment'])
+            $ve->add('COMMENT', $event['comment']);
+
+        $memory_limit = parse_bytes(ini_get('memory_limit'));
+
         // export attachments
         if (!empty($event['attachments'])) {
             foreach ((array)$event['attachments'] as $attach) {
                 // check available memory and skip attachment export if we can't buffer it
+                // @todo: use rcube_utils::mem_check()
                 if (is_callable($get_attachment) && $memory_limit > 0 && ($memory_used = function_exists('memory_get_usage') ? memory_get_usage() : 16*1024*1024)
                     && $attach['size'] && $memory_used + $attach['size'] * 3 > $memory_limit) {
                     continue;
@@ -1119,7 +1143,7 @@ class libvcalendar implements Iterator
         }
 
         // append recurrence exceptions
-        if (isset($event['recurrence']['EXCEPTIONS']) && is_array($event['recurrence']['EXCEPTIONS'])) {
+        if (is_array($event['recurrence']) && $event['recurrence']['EXCEPTIONS']) {
             foreach ($event['recurrence']['EXCEPTIONS'] as $ex) {
                 $exdate = clone $event['start'];
                 $exdate->setDate($ex['start']->format('Y'), $ex['start']->format('n'), $ex['start']->format('j'));

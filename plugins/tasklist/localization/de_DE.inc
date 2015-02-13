@@ -1,65 +1,92 @@
 <?php
-
-$labels = array();
+/**
+ * Localizations for the Kolab Tasks plugin
+ *
+ * Copyright (C) 2014, Kolab Systems AG
+ *
+ * For translation see https://www.transifex.com/projects/p/kolab/resource/tasklist/
+ */
 $labels['navtitle'] = 'Aufgaben';
 $labels['lists'] = 'Aufgabenlisten';
-$labels['list'] = 'Liste';
-$labels['tags'] = 'Tags';
-
+$labels['list'] = 'Aufgabenliste';
+$labels['tags'] = 'Schlagworte';
+$labels['tasklistsubscribe'] = 'Permanent anzeigen';
+$labels['listsearchresults'] = 'Verfügbare Aufgaben';
+$labels['findlists'] = 'Finde Aufgabenlisten,..';
+$labels['searchterms'] = 'Suchbegriffe';
+$labels['notasklistsfound'] = 'Keine Aufgabenlisten gefunden';
+$labels['nrtasklistsfound'] = '$nr Aufgabenlisten gefunden';
+$labels['removelist'] = 'Von der Liste entfernen';
 $labels['newtask'] = 'Neue Aufgabe';
-$labels['createnewtask'] = 'Neue Aufgabe eingeben (z.B. Samstag, Rasenmähen)';
-$labels['createfrommail'] = 'Als Aufgabe speichern';
+$labels['createtask'] = 'Aufgabe erstellen <Enter>';
+$labels['createnewtask'] = 'Neue Aufgabe erstellen (z.B. Samstag, Rasen mähen)';
+$labels['createfrommail'] = 'Aufgabe speichern';
 $labels['mark'] = 'Markieren';
-$labels['unmark'] = 'Markierung aufheben';
+$labels['unmark'] = 'Markierung entfernen';
 $labels['edit'] = 'Bearbeiten';
 $labels['delete'] = 'Löschen';
 $labels['title'] = 'Titel';
 $labels['description'] = 'Beschreibung';
 $labels['datetime'] = 'Fällig';
+$labels['duetime'] = 'Frist';
 $labels['start'] = 'Beginn';
+$labels['starttime'] = 'Startzeit';
 $labels['alarms'] = 'Erinnerung';
-
+$labels['repeat'] = 'Wiederholung';
+$labels['links'] = 'Referenz';
+$labels['status'] = 'Status';
+$labels['status-needs-action'] = 'Braucht Aktion';
+$labels['status-in-process'] = 'In Bearbeitung';
+$labels['status-completed'] = 'Erledigt';
+$labels['status-cancelled'] = 'Gekündigt';
+$labels['assignedto'] = 'Zugewiesen an';
+$labels['created'] = 'Erstellt';
+$labels['changed'] = 'Geändert';
 $labels['all'] = 'Alle';
 $labels['flagged'] = 'Markiert';
-$labels['complete'] = 'Erledigt';
+$labels['complete'] = 'Abgeschlossen';
+$labels['completeness'] = 'Fortschritt';
 $labels['overdue'] = 'Überfällig';
 $labels['today'] = 'Heute';
 $labels['tomorrow'] = 'Morgen';
-$labels['next7days'] = 'Nächste 7 Tage';
+$labels['next7days'] = 'Innerhalb von 7 Tagen';
 $labels['later'] = 'Später';
-$labels['nodate'] = 'kein Datum';
-$labels['removetag'] = 'Löschen';
-
+$labels['assigned'] = 'Zugewiesen';
+$labels['assignedtitle'] = 'Aufgaben, welche an andere vergeben wurden';
+$labels['mytasks'] = 'Meine Aufgaben';
+$labels['mytaskstitle'] = 'An mich übertragene Aufgaben';
+$labels['nodate'] = 'Ohne Datum';
+$labels['removetag'] = 'Entfernen';
+$labels['removelink'] = 'E-Mail-Referenz entfernen';
+$labels['auto'] = 'Automatisch';
 $labels['taskdetails'] = 'Details';
 $labels['newtask'] = 'Neue Aufgabe';
-$labels['edittask'] = 'Aufgabe bearbeiten';
+$labels['edittask'] = 'Aufgabe ändern';
 $labels['save'] = 'Speichern';
 $labels['cancel'] = 'Abbrechen';
-$labels['addsubtask'] = 'Neue Teilaufgabe';
+$labels['saveandnotify'] = 'Speichern und Benachrichtigen';
+$labels['addsubtask'] = 'Teilaufgabe hinzufügen';
 $labels['deletetask'] = 'Aufgabe löschen';
 $labels['deletethisonly'] = 'Nur diese Aufgabe löschen';
-$labels['deletewithchilds'] = 'Mit allen Teilaufhaben löschen';
-
-
-$labels['tabsummary'] = 'Übersicht';
+$labels['deletewithchilds'] = 'Mit allen Teilaufgaben löschen';
+$labels['taskactions'] = 'Aufgabeneinstellungen...';
+$labels['tabsummary'] = 'Titel';
 $labels['tabrecurrence'] = 'Wiederholung';
+$labels['tabassignments'] = 'Zuweisungen';
 $labels['tabattachments'] = 'Anhänge';
 $labels['tabsharing'] = 'Freigabe';
-
 $labels['editlist'] = 'Liste bearbeiten';
-$labels['createlist'] = 'Neue Liste';
-$labels['listactions'] = 'Listenoptionen...';
+$labels['createlist'] = 'Liste hinzufügen';
+$labels['listactions'] = 'Listeneinstellungen…';
 $labels['listname'] = 'Name';
-$labels['showalarms'] = 'Erinnerungen anzeigen';
+$labels['showalarms'] = 'Show reminders';
 $labels['import'] = 'Importieren';
-
-// date words
+$labels['viewactions'] = 'Ansicht-Aktionen';
+$labels['focusview'] = 'Nur diese Liste anzeigen';
 $labels['on'] = 'am';
 $labels['at'] = 'um';
-$labels['this'] = 'diesen';
-$labels['next'] = 'nächsten';
-
-// mesages
+$labels['this'] = 'dies';
+$labels['next'] = 'weiter';
 $labels['savingdata'] = 'Daten werden gespeichert…';
 $labels['errorsaving'] = 'Daten konnten nicht gespeichert werden.';
 $labels['notasksfound'] = 'Keine Aufgabe erfüllt die angelegten Kriterien';
@@ -67,4 +94,44 @@ $labels['invalidstartduedates'] = 'Das Anfangsdatum muss vor dem Fälligkeitsdat
 $labels['deletetasktconfirm'] = 'Diese Aufgabe wirklich löschen?';
 $labels['deleteparenttasktconfirm'] = 'Diese Aufgabe wirklich mit allen Teilaufgaben löschen?';
 $labels['deletelistconfirm'] = 'Diese Aufgabenliste wirklich mit allen Aufgaben löschen?';
-$labels['aclnorights'] = 'Der Zugriff auf diese Liste erfordert Administrator-Rechte.';
+$labels['deletelistconfirmrecursive'] = 'Soll diese Liste wirklich mit allen Aufgaben und Unterlisten gelöscht werden?';
+$labels['aclnorights'] = 'Der Zugriff auf diese Aufgabenliste erfordert Administrator-Rechte.';
+$labels['changetaskconfirm'] = 'Aufgabe ändern';
+$labels['changeconfirmnotifications'] = 'Wollen Sie die beauftragten Teilnehmer über diese Änderung informieren?';
+$labels['partstatupdatenotification'] = 'Wollen Sie den Organisator über die Statusänderung benachrichtigen?';
+$labels['quickaddinput'] = 'Neue Aufgabe Datum und Titel';
+$labels['arialabelquickaddbox'] = 'Neue Aufgabe schnell hinzufügen';
+$labels['arialabelsearchform'] = 'Suchformular für Aufgaben';
+$labels['arialabelquicksearchbox'] = 'Sucheingabe für Aufgaben';
+$labels['arialabellistsearchform'] = 'Sucheingabe für Aufgabenlisten';
+$labels['arialabeltaskselector'] = 'Listenmodus';
+$labels['arialabeltasklisting'] = 'Aufgabenauflistung';
+$labels['attendee'] = 'Beauftragter';
+$labels['role'] = 'Rolle';
+$labels['availability'] = 'Verfüg.';
+$labels['confirmstate'] = 'Status';
+$labels['addattendee'] = 'Beauftragten hinzufügen';
+$labels['roleorganizer'] = 'Organisator';
+$labels['rolerequired'] = 'Erforderlich';
+$labels['roleoptional'] = 'Optional';
+$labels['rolechair'] = 'Stuhl';
+$labels['rolenonparticipant'] = 'Beobachter';
+$labels['sendinvitations'] = 'Einladungen versenden';
+$labels['sendnotifications'] = 'Beauftragte Teilnehmer über die Änderung informieren';
+$labels['sendcancellation'] = 'Beauftragte Teilnehmer über die Stornierung informieren';
+$labels['itipupdatesubject'] = '"$title" wurde aktualisiert';
+$labels['itipcancelsubject'] = '"$title" wurde abgesagt';
+$labels['saveintasklist'] = 'speichern in';
+$labels['itipcomment'] = 'Kommentar zur Einladungs-/Benachrichtigungsnachricht';
+$labels['removefromcalendar'] = 'Aus meinen Aufgaben entfernen';
+$labels['andnmore'] = '$nr weitere...';
+$labels['delegatedto'] = 'Delegiert an:';
+$labels['delegatedfrom'] = 'Delegiert von:';
+$labels['savetotasklist'] = 'In den Aufgaben speichern';
+$labels['comment'] = 'Kommentar';
+$labels['errorimportingtask'] = 'Fehler beim Importieren der Aufgabe(n)';
+$labels['importsuccess'] = '$nr Aufgaben erfolgreich importiert';
+$labels['attendeupdateesuccess'] = 'Teilnehmerstatus erfolgreich aktualisiert';
+$labels['itipinvalidrequest'] = 'Diese Einladung ist nicht mehr gültig.';
+$labels['successremoval'] = 'Diese Aufgabe wurde erfolgreich gelöscht.';
+$labels['arialabelsortmenu'] = 'Aufgaben-Sortierungsoptionen';

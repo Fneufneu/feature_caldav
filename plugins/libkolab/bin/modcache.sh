@@ -1,4 +1,4 @@
-#!/usr/bin/env php -d enable_dl=On
+#!/usr/bin/env php
 <?php
 
 /**
@@ -110,7 +110,7 @@ case 'clear':
     }
 
     if ($sql_query) {
-        $db->query($sql_query . $sql_add, resource_prefix($opts).'%');
+        $db->query($sql_query, resource_prefix($opts).'%');
         echo $db->affected_rows() . " records deleted from 'kolab_folders'\n";
     }
     break;
@@ -221,7 +221,7 @@ function authenticate(&$opts)
             if ($opts['verbose'])
                 echo "IMAP login succeeded.\n";
             if (($user = rcube_user::query($opts['username'], $auth['host'])) && $user->ID)
-                $rcmail->set_user($user);
+                $rcmail->user = $user;
         }
         else
             die("Login to IMAP server failed!\n");

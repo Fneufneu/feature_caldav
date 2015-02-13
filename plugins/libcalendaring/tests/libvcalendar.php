@@ -156,15 +156,14 @@ class libvcalendar_test extends PHPUnit_Framework_TestCase
         $this->assertEquals(2, count($rrule['EXDATE']),          "Recurrence EXDATEs");
         $this->assertInstanceOf('DateTime', $rrule['EXDATE'][0], "Recurrence EXDATE as DateTime");
 
-        // alarms
-        $this->assertEquals('-12H:DISPLAY', $event['alarms'], "Serialized alarms string");
-        $alarm = libcalendaring::parse_alaram_value($event['alarms']);
-        $this->assertEquals('12', $alarm[0], "Alarm value");
-        $this->assertEquals('-H', $alarm[1], "Alarm unit");
-
         // categories, class
         $this->assertEquals('libcalendaring tests', join(',', (array)$event['categories']), "Event categories");
         $this->assertEquals('confidential', $event['sensitivity'], "Class/sensitivity = confidential");
+
+        // parse a reccuence chain instance
+        $events = $ical->import_from_file(__DIR__ . '/resources/recurrence-id.ics', 'UTF-8');
+        $this->assertEquals(1, count($events), "Fall back to Component::getComponents() when getBaseComponents() is empty");
+        $this->assertInstanceOf('DateTime', $events[0]['recurrence_date'], "Recurrence-ID as date");
     }
 
     /**
@@ -173,6 +172,7 @@ class libvcalendar_test extends PHPUnit_Framework_TestCase
     function test_alarms()
     {
         $ical = new libvcalendar();
+
         $events = $ical->import_from_file(__DIR__ . '/resources/recurring.ics', 'UTF-8');
         $event = $events[0];
 
@@ -182,7 +182,7 @@ class libvcalendar_test extends PHPUnit_Framework_TestCase
         $this->assertEquals('-H', $alarm[1], "Alarm unit");
 
         $this->assertEquals('DISPLAY', $event['valarms'][0]['action'],  "Full alarm item (action)");
-        $this->assertEquals('-PT12H',   $event['valarms'][0]['trigger'], "Full alarm item (trigger)");
+        $this->assertEquals('-PT12H',  $event['valarms'][0]['trigger'], "Full alarm item (trigger)");
 
         // alarm trigger with 0 values
         $events = $ical->import_from_file(__DIR__ . '/resources/alarms.ics', 'UTF-8');
@@ -190,7 +190,10 @@ class libvcalendar_test extends PHPUnit_Framework_TestCase
 
         $this->assertEquals('-30M:DISPLAY', $event['alarms'], "Stripped alarm string");
         $alarm = libcalendaring::parse_alaram_value($event['alarms']);
+        $this->assertEquals('30', $alarm[0], "Alarm value");
+        $this->assertEquals('-M', $alarm[1], "Alarm unit");
         $this->assertEquals('-30M', $alarm[2], "Alarm string");
+        $this->assertEquals('-PT30M', $alarm[3], "Unified alarm string (stripped zero-values)");
 
         $this->assertEquals('DISPLAY', $event['valarms'][0]['action'],  "First alarm action");
         $this->assertEquals('This is the first event reminder', $event['valarms'][0]['description'],  "First alarm text");
@@ -244,8 +247,9 @@ class libvcalendar_test extends PHPUnit_Framework_TestCase
         $this->assertEquals('-M', $alarm[1], "Alarm unit");
 
         $this->assertEquals(1, count($event['valarms']), "Ignore invalid alarm blocks");
-        $this->assertEquals('AUDIO', $event['valarms'][0]['action'],  "Full alarm item (action)");
+        $this->assertEquals('AUDIO', $event['valarms'][0]['action'],   "Full alarm item (action)");
         $this->assertEquals('-PT45M', $event['valarms'][0]['trigger'], "Full alarm item (trigger)");
+        $this->assertEquals('Basso',  $event['valarms'][0]['uri'],     "Full alarm item (attachment)");
     }
 
     /**
@@ -318,7 +322,6 @@ class libvcalendar_test extends PHPUnit_Framework_TestCase
         $this->assertEquals('IN-PROCESS',   $task['status'],  "Task status property");
         $this->assertEquals(1, count($task['x-custom']),      "Custom properties");
         $this->assertEquals(4, count($task['categories']));
-        $this->assertEquals('1234567890-12345678-PARENT', $task['parent_id'], "Parent Relation");
     }
 
     /**
