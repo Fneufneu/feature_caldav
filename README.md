@@ -9,16 +9,17 @@ Requirements
 
 Installation
 ============
-* Clone this repo and checkout the appropriate tag from the `feature_caldav` branch or the head of the `feature_caldav` branch for the latest version:
+* Clone this repo and checkout the appropriate tag from the `feature_caldav` branch. Please note that we assume that you are using Kolab Groupware and that there is supported version of Kolab Roundcubemail Plugins installed.
+For example if `roundcubemail-plugins-kolab-3.1.14` is installed, you must checkout `roundcubemail-plugins-kolab-caldav-3.1.14[-rn]`. If you can't find an appropriate tag in the `feature_caldav` branch, you're version of Kolab Roundcubemail Plugins is not supported.
 
     ```bash
     $ cd /path/to/your/roundcube/
     $ git clone https://gitlab.awesome-it.de/kolab/roundcube-plugins.git plugins-caldav
     $ cd plugins-caldav 
-    $ git checkout feature_caldav
+    $ git checkout roundcubemail-plugins-kolab-caldav-<VERSION>-<REVISION>
     ```
-
-* Assuming that there is already a compatible version of the Kolab Roundcubemail Plugins installed (e.g. if you checkout `roundcubemail-plugins-kolab-caldav-3.1.11-r1`, `roundcubemail-plugins-kolab-3.1.11` or similar should be installed), you must only replace the modified calendar plugin as follows:
+    
+* Only the calendar plugin was modified, so you only have to replace the calendar plugin:
 
     ```bash
     $ cd /path/to/your/roundcube/    
