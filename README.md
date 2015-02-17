@@ -10,7 +10,7 @@ Requirements
 Installation
 ============
 * Clone this repo and checkout the appropriate tag from the `feature_caldav` branch. Please note that we assume that you are using Kolab Groupware and that there is supported version of Kolab Roundcubemail Plugins installed.
-For example if `roundcubemail-plugins-kolab-3.1.14` is installed, you must checkout `roundcubemail-plugins-kolab-caldav-3.1.14[-rn]`. If you can't find an appropriate tag in the `feature_caldav` branch, you're version of Kolab Roundcubemail Plugins is not supported.
+For example if `roundcubemail-plugins-kolab-3.1.13` is installed, you must checkout `roundcubemail-plugins-kolab-caldav-3.1.13[-rn]`. If you can't find an appropriate tag in the `feature_caldav` branch, you're version of Kolab Roundcubemail Plugins is not supported.
 
     ```bash
     $ cd /path/to/your/roundcube/
