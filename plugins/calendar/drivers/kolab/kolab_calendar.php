@@ -237,7 +237,7 @@ class kolab_calendar extends kolab_storage_folder_api
     $query[] = array('dtend',   '>=', $start);
 
     // add query to exclude pending/declined invitations
-    if (empty($filter_query)) {
+    if (empty($filter_query) && $this->get_namespace() != 'other') {
       foreach ($user_emails as $email) {
         $query[] = array('tags', '!=', 'x-partstat:' . $email . ':needs-action');
         $query[] = array('tags', '!=', 'x-partstat:' . $email . ':declined');
@@ -257,7 +257,7 @@ class kolab_calendar extends kolab_storage_folder_api
     $events = array();
     foreach ($this->storage->select($query) as $record) {
       // post-filter events to skip pending and declined invitations
-      if (empty($filter_query) && is_array($record['attendees'])) {
+      if (empty($filter_query) && is_array($record['attendees']) && $this->get_namespace() != 'other') {
         foreach ($record['attendees'] as $attendee) {
           if (in_array($attendee['email'], $user_emails) && in_array($attendee['status'], array('NEEDS-ACTION','DECLINED'))) {
             continue 2;
@@ -391,6 +391,10 @@ class kolab_calendar extends kolab_storage_folder_api
     if (!is_array($event))
       return false;
 
+    // email links are stored separately
+    $links = $event['links'];
+    unset($event['links']);
+
     //generate new event from RC input
     $object = $this->_from_rcube_event($event);
     $saved = $this->storage->save($object, 'event');
@@ -404,6 +408,9 @@ class kolab_calendar extends kolab_storage_folder_api
       $saved = false;
     }
     else {
+      // save links in configuration.relation object
+      $this->save_links($event['uid'], $links);
+
       $event['id'] = $event['uid'];
       $this->events = array($event['uid'] => $this->_to_rcube_event($object));
     }
@@ -425,6 +432,10 @@ class kolab_calendar extends kolab_storage_folder_api
     if (!$old || PEAR::isError($old))
       return false;
 
+    // email links are stored separately
+    $links = $event['links'];
+    unset($event['links']);
+
     $object = $this->_from_rcube_event($event, $old);
     $saved = $this->storage->save($object, 'event', $event['id']);
 
@@ -436,6 +447,9 @@ class kolab_calendar extends kolab_storage_folder_api
         true, false);
     }
     else {
+      // save links in configuration.relation object
+      $this->save_links($event['uid'], $links);
+
       $updated = true;
       $this->events[$event['id']] = $this->_to_rcube_event($object);
 
@@ -491,6 +505,29 @@ class kolab_calendar extends kolab_storage_folder_api
     return false;
   }
 
+  /**
+   * Find messages linked with an event
+   */
+  protected function get_links($uid)
+  {
+    $storage = kolab_storage_config::get_instance();
+    return $storage->get_object_links($uid);
+  }
+
+  /**
+   *
+   */
+  protected function save_links($uid, $links)
+  {
+    // make sure we have a valid array
+    if (empty($links)) {
+      $links = array();
+    }
+
+    $storage = kolab_storage_config::get_instance();
+    $remove = array_diff($storage->get_object_links($uid), $links);
+    return $storage->save_object_links($uid, $links, $remove);
+  }
 
   /**
    * Create instances of a recurring event
@@ -635,6 +672,12 @@ class kolab_calendar extends kolab_storage_folder_api
   {
     $record['id'] = $record['uid'];
     $record['calendar'] = $this->id;
+    $record['links'] = $this->get_links($record['uid']);
+
+    if ($this->get_namespace() == 'other') {
+      $record['className'] = 'fc-event-ns-other';
+      $record = kolab_driver::add_partstat_class($record, array('NEEDS-ACTION','DECLINED'), $this->get_owner());
+    }
 
     return kolab_driver::to_rcube_event($record);
   }

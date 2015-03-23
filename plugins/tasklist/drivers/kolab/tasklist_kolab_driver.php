@@ -825,7 +825,7 @@ class tasklist_kolab_driver extends tasklist_driver
     private function get_links($uid)
     {
         $config = kolab_storage_config::get_instance();
-        return array_map(array($this, '_convert_message_uri'), $config->get_object_links($uid));
+        return $config->get_object_links($uid);
     }
 
     /**
@@ -838,38 +838,9 @@ class tasklist_kolab_driver extends tasklist_driver
             $links = array();
         }
 
-        // convert the given (simplified) message links into absolute IMAP URIs
-        $links = array_map(function($link) {
-            $url = parse_url(substr($link, 8));
-            parse_str($url['query'], $linkref);
-
-            $path = explode('/', $url['path']);
-            $linkref['uid'] = array_pop($path);
-            $linkref['folder'] = join('/', array_map('rawurldecode', $path));
-
-            return kolab_storage_config::build_member_url($linkref);
-        }, $links);
-
         $config = kolab_storage_config::get_instance();
         $remove = array_diff($config->get_object_links($uid), $links);
         return $config->save_object_links($uid, $links, $remove);
-    }
-
-    /**
-     * Simplify the given message URI by converting the mailbox
-     * part into a relative IMAP path valid for the current user.
-     */
-    protected function _convert_message_uri($uri)
-    {
-        if (strpos($uri, 'imap:///') === 0) {
-            $linkref = kolab_storage_config::parse_member_url($uri);
-
-            return 'imap:///' . implode('/', array_map('rawurlencode', explode('/', $linkref['folder']))) .
-                '/' . $linkref['uid'] .
-                '?' . http_build_query($linkref['params'], '', '&');
-        }
-
-        return $uri;
     }
 
     /**
@@ -1289,14 +1260,21 @@ class tasklist_kolab_driver extends tasklist_driver
     }
 
     /**
-     * Build a URI representing the given message reference
+     * Build a struct representing the given message reference
      *
-     * @see tasklist_driver::get_message_uri()
+     * @see tasklist_driver::get_message_reference()
      */
-    public function get_message_uri($headers, $folder)
+    public function get_message_reference($uri_or_headers, $folder = null)
     {
-        $uri = kolab_storage_config::get_message_uri($headers, $folder);
-        return $this->_convert_message_uri($uri);
+        if (is_object($uri_or_headers)) {
+            $uri_or_headers = kolab_storage_config::get_message_uri($uri_or_headers, $folder);
+        }
+
+        if (is_string($uri_or_headers)) {
+            return kolab_storage_config::get_message_reference($uri_or_headers, 'task');
+        }
+
+        return false;
     }
 
     /**

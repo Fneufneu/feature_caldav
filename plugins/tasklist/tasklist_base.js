@@ -50,8 +50,7 @@ function rcube_tasklist(settings)
             // load calendar UI (scripts and edit dialog template)
             if (!ui_loaded) {
                 $.when(
-                    $.getScript('./plugins/tasklist/tasklist.js'),
-                    $.getScript('./plugins/tasklist/jquery.tagedit.js'),
+                    $.getScript(rcmail.assets_path('plugins/tasklist/tasklist.js')),
                     $.get(rcmail.url('tasks/inlineui'), function(html){ $(document.body).append(html); }, 'html')
                 ).then(function() {
                     // register attachments form

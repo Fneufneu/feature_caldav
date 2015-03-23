@@ -70,6 +70,10 @@ window.rcmail && window.files_api && rcmail.addEventListener('init', function() 
       rcmail.addEventListener('menu-open', kolab_files_attach_menu_open);
       rcmail.enable_command('folder-create', true);
     }
+    // attachment preview
+    else if (rcmail.env.action == 'get') {
+      rcmail.enable_command('folder-create', true);
+    }
 
     kolab_files_init();
   }
@@ -142,7 +146,7 @@ function kolab_files_init()
     sort_col: 'name',
     sort_reverse: false,
     search_threads: rcmail.env.search_threads,
-    resources_dir: 'program/resources',
+    resources_dir: rcmail.assets_path('program/resources'),
     supported_mimetypes: rcmail.env.file_mimetypes
   });
 
@@ -230,6 +234,7 @@ function kolab_directory_selector_dialog(id)
   kolab_dialog_show(dialog, {
     title: rcmail.gettext('kolab_files.' + label),
     buttons: buttons,
+    button_classes: ['mainaction'],
     minWidth: 250,
     minHeight: 300,
     height: 350,
@@ -283,6 +288,7 @@ function kolab_files_selector_dialog()
   kolab_dialog_show(dialog, {
     title: rcmail.gettext('kolab_files.selectfiles'),
     buttons: buttons,
+    button_classes: ['mainaction'],
     minWidth: 500,
     minHeight: 300,
     width: 700,
@@ -340,7 +346,8 @@ function kolab_files_folder_create_dialog()
   // show dialog window
   kolab_dialog_show(dialog, {
     title: rcmail.gettext('kolab_files.foldercreate'),
-    buttons: buttons
+    buttons: buttons,
+    button_classes: ['mainaction']
   });
 
   // Fix submitting form with Enter
@@ -395,7 +402,8 @@ function kolab_files_folder_edit_dialog()
   // show dialog window
   kolab_dialog_show(dialog, {
     title: rcmail.gettext('kolab_files.folderedit'),
-    buttons: buttons
+    buttons: buttons,
+    button_classes: ['mainaction']
   });
 
   // Fix submitting form with Enter
@@ -467,6 +475,8 @@ function kolab_files_folder_mount_dialog()
    });
   }
 
+  args.button_classes = ['mainaction'];
+
   // show dialog window
   kolab_dialog_show(dialog, args, function() {
     $('td.source:first', dialog).click();
@@ -504,7 +514,8 @@ function kolab_files_file_edit_dialog(file)
   // show dialog window
   kolab_dialog_show(dialog, {
     title: rcmail.gettext('kolab_files.fileedit'),
-    buttons: buttons
+    buttons: buttons,
+    button_classes: ['mainaction']
   });
 };
 
@@ -1931,7 +1942,8 @@ function kolab_files_ui()
     // otherwise the form will be posted to a new window
     if (document.all) {
       var html = '<iframe id="'+frame_name+'" name="'+frame_name+'"'
-        + ' src="program/resources/blank.gif" style="width:0;height:0;visibility:hidden;"></iframe>';
+        + ' src="' + rcmail.assets_path('program/resources/blank.gif') + '"'
+        + ' style="width:0;height:0;visibility:hidden;"></iframe>';
       document.body.insertAdjacentHTML('BeforeEnd', html);
     }
     // for standards-compliant browsers
@@ -2092,6 +2104,8 @@ function kolab_files_ui()
 
     if (!param.done && param.total)
       this.file_upload_progress(param.id);
+    else
+      delete this.uploads[param.id];
   };
 
   this.file_upload_progress_stop = function(id)

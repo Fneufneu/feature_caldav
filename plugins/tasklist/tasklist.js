@@ -129,6 +129,7 @@ function rcube_tasklist_ui(settings)
     var parse_datetime = this.parse_datetime;
     var date2unixtime = this.date2unixtime;
     var fromunixtime = this.fromunixtime;
+    var render_message_links = this.render_message_links;
 
     /**
      * initialize the tasks UI
@@ -594,6 +595,12 @@ function rcube_tasklist_ui(settings)
         // register click handler for message links
         $('#task-links, #taskedit-links').on('click', 'li a.messagelink', function(e) {
             rcmail.open_window(this.href);
+            return false;
+        });
+
+        // register click handler for message delete buttons
+        $('#taskedit-links').on('click', 'li a.delete', function(e) {
+            remove_link(e.target);
             return false;
         });
 
@@ -1840,7 +1847,7 @@ function rcube_tasklist_ui(settings)
         // build attachments list
         $('#task-links').hide();
         if ($.isArray(rec.links) && rec.links.length) {
-            task_show_links(rec.links || [], $('#task-links').children('.task-text'));
+            render_message_links(rec.links || [], $('#task-links').children('.task-text'), false, 'tasklist');
             $('#task-links').show();
         }
 
@@ -1937,6 +1944,7 @@ function rcube_tasklist_ui(settings)
 
             buttons.push({
                 text: rcmail.gettext('delete','tasklist'),
+                'class': 'delete',
                 click: function() {
                     if (delete_task(me.selected_task.id))
                         $dialog.dialog('close');
@@ -2051,7 +2059,7 @@ function rcube_tasklist_ui(settings)
         me.set_alarms_edit('#taskedit-alarms', action != 'new' && rec.valarms ? rec.valarms : []);
 
         if ($.isArray(rec.links) && rec.links.length) {
-            task_show_links(rec.links, $('#taskedit-links .task-text'), true);
+            render_message_links(rec.links, $('#taskedit-links .task-text'), true, 'tasklist');
             $('#taskedit-links').show();
         }
         else {
@@ -2126,8 +2134,11 @@ function rcube_tasklist_ui(settings)
         $('#taskedit').tabs('option', 'active', 0);
 
         // define dialog buttons
-        var buttons = {};
-        buttons[rcmail.gettext('save', 'tasklist')] = function() {
+        var buttons = [];
+        buttons.push({
+            text: rcmail.gettext('save', 'tasklist'),
+            'class': 'mainaction',
+            click: function() {
             var data = me.selected_task;
             data._status_before = me.selected_task.status + '';
 
@@ -2221,18 +2232,26 @@ function rcube_tasklist_ui(settings)
 
             if (save_task(data, action))
                 $dialog.dialog('close');
-        };
+        }  // end click:
+        });
 
         if (action != 'new') {
-            buttons[rcmail.gettext('delete', 'tasklist')] = function() {
-                if (delete_task(rec.id))
-                    $dialog.dialog('close');
-            };
+            buttons.push({
+                text: rcmail.gettext('delete', 'tasklist'),
+                'class': 'delete',
+                click: function() {
+                    if (delete_task(rec.id))
+                        $dialog.dialog('close');
+                }
+            });
         }
 
-        buttons[rcmail.gettext('cancel', 'tasklist')] = function() {
-            $dialog.dialog('close');
-        };
+        buttons.push({
+            text: rcmail.gettext('cancel', 'tasklist'),
+            click: function() {
+                $dialog.dialog('close');
+            }
+        });
 
         // open jquery UI dialog
         $dialog.dialog({
@@ -2346,48 +2365,15 @@ function rcube_tasklist_ui(settings)
     /**
      *
      */
-    function task_show_links(links, container, edit)
+    function remove_link(elem)
     {
-        var dellink, ul = $('<ul>').addClass('attachmentslist');
+        var $elem = $(elem), uri = $elem.attr('data-uri');
 
-        $.each(links, function(i, link) {
-            var li = $('<li>').addClass('link')
-                .addClass('message eml')
-                .append($('<a>')
-                    .attr('href', link.mailurl)
-                    .addClass('messagelink')
-                    .text(link.subject || link.uri)
-                )
-                .appendTo(ul);
-
-            // add icon to remove the link
-            if (edit) {
-                $('<a>')
-                    .attr('href', '#delete')
-                    .attr('title', rcmail.gettext('removelink','tasklist'))
-                    .addClass('delete')
-                    .text(rcmail.gettext('delete'))
-                    .click({ uri:link.uri }, function(e) {
-                        remove_link(this, e.data.uri);
-                        return false;
-                    })
-                    .appendTo(li);
-            }
-        });
-
-        container.empty().append(ul);
-    }
-
-    /**
-     *
-     */
-    function remove_link(elem, uri)
-    {
         // remove the link item matching the given uri
         me.selected_task.links = $.grep(me.selected_task.links, function(link) { return link.uri != uri; });
 
         // remove UI list item
-        $(elem).hide().closest('li').addClass('deleted');
+        $elem.hide().closest('li').addClass('deleted');
     }
 
     /**
@@ -2461,6 +2447,7 @@ function rcube_tasklist_ui(settings)
             html = rcmail.gettext('deletetasktconfirm','tasklist');
             buttons.push({
                 text: rcmail.gettext('delete','tasklist'),
+                'class': 'delete',
                 click: function() {
                     _delete_task(id, 0);
                     $(this).dialog('close');
@@ -2649,9 +2636,12 @@ function rcube_tasklist_ui(settings)
         });
 
         // dialog buttons
-        var buttons = {};
+        var buttons = [];
 
-        buttons[rcmail.gettext('save','tasklist')] = function() {
+        buttons.push({
+            text: rcmail.gettext('save','tasklist'),
+            'class': 'mainaction',
+            click: function() {
             // do some input validation
             if (!name.val() || name.val().length < 2) {
                 alert(rcmail.gettext('invalidlistproperties', 'tasklist'));
@@ -2669,11 +2659,15 @@ function rcube_tasklist_ui(settings)
             saving_lock = rcmail.set_busy(true, 'tasklist.savingdata');
             rcmail.http_post('tasklist', { action:(list.id ? 'edit' : 'new'), l:data });
             $dialog.dialog('close');
-        };
+        }  // end click:
+        });
 
-        buttons[rcmail.gettext('cancel','tasklist')] = function() {
-            $dialog.dialog('close');
-        };
+        buttons.push({
+            text: rcmail.gettext('cancel','tasklist'),
+            click: function() {
+                $dialog.dialog('close');
+            }
+        });
 
         // open jquery UI dialog
         $dialog.dialog({
@@ -2681,9 +2675,6 @@ function rcube_tasklist_ui(settings)
             resizable: true,
             closeOnEscape: false,
             title: rcmail.gettext((list.id ? 'editlist' : 'createlist'), 'tasklist'),
-            open: function() {
-                $dialog.parent().find('.ui-dialog-buttonset .ui-button').first().addClass('mainaction');
-            },
             close: function() {
                 $dialog.dialog('destroy').hide();
             },

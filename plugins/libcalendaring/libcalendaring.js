@@ -788,6 +788,39 @@ function rcube_libcalendaring(settings)
         }
     };
 
+
+    // Render message reference links to the given container
+    this.render_message_links = function(links, container, edit, plugin)
+    {
+        var ul = $('<ul>').addClass('attachmentslist');
+
+        $.each(links, function(i, link) {
+            if (!link.mailurl)
+                return true;  // continue
+
+            var li = $('<li>').addClass('link')
+                .addClass('message eml')
+                .append($('<a>')
+                    .attr('href', link.mailurl)
+                    .addClass('messagelink')
+                    .text(link.subject || link.uri)
+                )
+                .appendTo(ul);
+
+            // add icon to remove the link
+            if (edit) {
+                $('<a>')
+                    .attr('href', '#delete')
+                    .attr('title', rcmail.gettext('removelink', plugin))
+                    .attr('data-uri', link.uri)
+                    .addClass('delete')
+                    .text(rcmail.gettext('delete'))
+                    .appendTo(li);
+            }
+        });
+
+        container.empty().append(ul);
+    }
 }
 
 //////  static methods
@@ -1107,4 +1140,18 @@ window.rcmail && rcmail.addEventListener('init', function(evt) {
   $('.rsvp-buttons').on('click', 'a.reply-comment-toggle', function(e){
     $(this).hide().parent().find('textarea').show().focus();
   });
+
+  if (rcmail.env.action == 'get-attachment' && rcmail.gui_objects['attachmentframe']) {
+    rcmail.register_command('print-attachment', function() {
+      var frame = rcmail.get_frame_window(rcmail.gui_objects['attachmentframe'].id);
+      if (frame) frame.print();
+    }, true);
+  }
+
+  if (rcmail.env.action == 'get-attachment' && rcmail.env.attachment_download_url) {
+    rcmail.register_command('download-attachment', function() {
+      rcmail.location_href(rcmail.env.attachment_download_url, window);
+    }, true);
+  }
+
 });

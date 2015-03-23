@@ -772,7 +772,7 @@ class kolab_driver extends calendar_driver
           break;
       }
     }
-
+    
     if ($success && $this->freebusy_trigger)
       $this->rc->output->command('plugin.ping_url', array('action' => 'calendar/push-freebusy', 'source' => $storage->id));
 
@@ -980,7 +980,7 @@ class kolab_driver extends calendar_driver
         $success = $storage->update_event($event);
         break;
     }
-    
+
     if ($success && $this->freebusy_trigger)
       $this->rc->output->command('plugin.ping_url', array('action' => 'calendar/push-freebusy', 'source' => $storage->id));
     
@@ -1216,6 +1216,24 @@ class kolab_driver extends calendar_driver
   }
 
   /**
+   * Build a struct representing the given message reference
+   *
+   * @see calendar_driver::get_message_reference()
+   */
+  public function get_message_reference($uri_or_headers, $folder = null)
+  {
+      if (is_object($uri_or_headers)) {
+          $uri_or_headers = kolab_storage_config::get_message_uri($uri_or_headers, $folder);
+      }
+
+      if (is_string($uri_or_headers)) {
+          return kolab_storage_config::get_message_reference($uri_or_headers, 'event');
+      }
+
+      return false;
+  }
+
+  /**
    * List availabale categories
    * The default implementation reads them from config/user prefs
    */
@@ -1351,7 +1369,7 @@ class kolab_driver extends calendar_driver
     $record['id'] = $record['uid'];
 
     // all-day events go from 12:00 - 13:00
-    if ($record['end'] <= $record['start'] && $record['allday']) {
+    if (is_a($record['start'], 'DateTime') && $record['end'] <= $record['start'] && $record['allday']) {
       $record['end'] = clone $record['start'];
       $record['end']->add(new DateInterval('PT1H'));
     }
@@ -1403,6 +1421,29 @@ class kolab_driver extends calendar_driver
     return $record;
   }
 
+  /**
+   * Set CSS class according to the event's attendde partstat
+   */
+  public static function add_partstat_class($event, $partstats, $user = null)
+  {
+    // set classes according to PARTSTAT
+    if (is_array($event['attendees'])) {
+      $user_emails = libcalendaring::get_instance()->get_user_emails($user);
+      $partstat = 'UNKNOWN';
+      foreach ($event['attendees'] as $attendee) {
+        if (in_array($attendee['email'], $user_emails)) {
+          $partstat = $attendee['status'];
+          break;
+        }
+      }
+
+      if (in_array($partstat, $partstats)) {
+        $event['className'] = trim($event['className'] . ' fc-invitation-' . strtolower($partstat));
+      }
+    }
+
+    return $event;
+  }
 
   /**
    * Provide a list of revisions for the given event

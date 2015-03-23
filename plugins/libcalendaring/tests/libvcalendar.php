@@ -322,6 +322,7 @@ class libvcalendar_test extends PHPUnit_Framework_TestCase
         $this->assertEquals('IN-PROCESS',   $task['status'],  "Task status property");
         $this->assertEquals(1, count($task['x-custom']),      "Custom properties");
         $this->assertEquals(4, count($task['categories']));
+        $this->assertEquals('1234567890-12345678-PARENT', $task['parent_id'], "Parent Relation");
     }
 
     /**
@@ -370,7 +371,7 @@ class libvcalendar_test extends PHPUnit_Framework_TestCase
         $rrule = $event['recurrence'];
         $this->assertRegExp('/RRULE:.*FREQ='.$rrule['FREQ'].'/',          $ics, "Export Recurrence Frequence");
         $this->assertRegExp('/RRULE:.*INTERVAL='.$rrule['INTERVAL'].'/',  $ics, "Export Recurrence Interval");
-        $this->assertRegExp('/RRULE:.*UNTIL=20140718/',                   $ics, "Export Recurrence End date");
+        $this->assertRegExp('/RRULE:.*UNTIL=20140718T215959Z/',           $ics, "Export Recurrence End date");
         $this->assertRegExp('/RRULE:.*BYDAY='.$rrule['BYDAY'].'/',        $ics, "Export Recurrence BYDAY");
         $this->assertRegExp('/EXDATE.*:20131218/',     $ics, "Export Recurrence EXDATE");
 

@@ -98,12 +98,6 @@ class libcalendaring extends rcube_plugin
 
         // include client scripts and styles
         if ($this->rc->output) {
-            if ($this->rc->output->type == 'html') {
-                $this->rc->output->set_env('libcal_settings', $this->load_settings());
-                $this->include_script('libcalendaring.js');
-                $this->include_stylesheet($this->local_skin_path() . '/libcal.css');
-            }
-
             // add hook to display alarms
             $this->add_hook('refresh', array($this, 'refresh'));
             $this->register_action('plugin.alarms', array($this, 'alarms_action'));
@@ -119,6 +113,12 @@ class libcalendaring extends rcube_plugin
      */
     public function startup($args)
     {
+        if ($this->rc->output && $this->rc->output->type == 'html') {
+            $this->rc->output->set_env('libcal_settings', $this->load_settings());
+            $this->include_script('libcalendaring.js');
+            $this->include_stylesheet($this->local_skin_path() . '/libcal.css');
+        }
+
         if ($args['task'] == 'mail') {
             if ($args['action'] == 'show' || $args['action'] == 'preview') {
                 $this->add_hook('message_load', array($this, 'mail_message_load'));
@@ -361,32 +361,37 @@ class libcalendaring extends rcube_plugin
     }
 
     /**
-     * Get a list of email addresses of the current user (from login and identities)
+     * Get a list of email addresses of the given user (from login and identities)
+     *
+     * @param string User Email (default to current user)
+     * @return array Email addresses related to the user
      */
-    public function get_user_emails()
+    public function get_user_emails($user = null)
     {
-        static $emails;
+        static $_emails = array();
 
-        // return cached result
-        if (is_array($emails)) {
-            return $emails;
+        if (empty($user)) {
+            $user = $this->rc->user->get_username();
         }
 
-        $emails = array();
+        // return cached result
+        if (is_array($_emails[$user])) {
+            return $_emails[$user];
+        }
+
+        $emails = array($user);
         $plugin = $this->rc->plugins->exec_hook('calendar_user_emails', array('emails' => $emails));
         $emails = array_map('strtolower', $plugin['emails']);
 
-        if ($plugin['abort']) {
-            return $emails;
+        // add all emails from the current user's identities
+        if (!$plugin['abort'] && ($user == $this->rc->user->get_username())) {
+            foreach ($this->rc->user->list_emails() as $identity) {
+                $emails[] = strtolower($identity['email']);
+            }
         }
 
-        $emails[] = $this->rc->user->get_username();
-        foreach ($this->rc->user->list_emails() as $identity) {
-            $emails[] = strtolower($identity['email']);
-        }
-
-        $emails = array_unique($emails);
-        return $emails;
+        $_emails[$user] = array_unique($emails);
+        return $_emails[$user];
     }
 
     /**
@@ -609,7 +614,7 @@ class libcalendaring extends rcube_plugin
                 }
             }
 
-            if ($notify_time && (!$notify_at || ($notify_time < $notify_at && $notify_time > $expires))) {
+            if ($notify_time && (!$notify_at || ($notify_time > $notify_at && $notify_time > $expires))) {
                 $notify_at = $notify_time;
                 $action = $alarm['action'];
                 $alarm_prop = $alarm;
@@ -1217,6 +1222,8 @@ class libcalendaring extends rcube_plugin
 
         $attrib['src'] = './?' . str_replace('_frame=', ($ctype_primary == 'text' ? '_show=' : '_preload='), $_SERVER['QUERY_STRING']);
 
+        $this->rc->output->add_gui_object('attachmentframe', $attrib['id']);
+
         return html::iframe($attrib);
     }
 
@@ -1225,18 +1232,31 @@ class libcalendaring extends rcube_plugin
      */
     public function attachment_header($attrib = array())
     {
-        $table = new html_table(array('cols' => 3));
+        $rcmail = rcmail::get_instance();
+        $dl_link = strtolower($attrib['downloadlink']) == 'true';
+        $dl_url = $this->rc->url(array('_frame' => null, '_download' => 1) + $_GET);
+
+        $table = new html_table(array('cols' => $dl_link ? 3 : 2));
 
         if (!empty($this->attachment['name'])) {
             $table->add('title', Q($this->rc->gettext('filename')));
             $table->add('header', Q($this->attachment['name']));
-            $table->add('download-link', html::a('?'.str_replace('_frame=', '_download=', $_SERVER['QUERY_STRING']), Q($this->rc->gettext('download'))));
+            if ($dl_link) {
+                $table->add('download-link', html::a($dl_url, Q($this->rc->gettext('download'))));
+            }
+        }
+
+        if (!empty($this->attachment['mimetype'])) {
+            $table->add('title', Q($this->rc->gettext('type')));
+            $table->add('header', Q($this->attachment['mimetype']));
         }
 
         if (!empty($this->attachment['size'])) {
             $table->add('title', Q($this->rc->gettext('filesize')));
             $table->add('header', Q(show_bytes($this->attachment['size'])));
         }
+
+        $this->rc->output->set_env('attachment_download_url', $dl_url);
 
         return $table->show($attrib);
     }
@@ -1440,7 +1460,12 @@ class libcalendaring extends rcube_plugin
             $k = strtoupper($k);
             switch ($k) {
             case 'UNTIL':
-                $val = $val->format('Ymd\THis');
+                // convert to UTC according to RFC 5545
+                if (is_a($val, 'DateTime')) {
+                    $until = clone $val;
+                    $until->setTimezone(new DateTimeZone('UTC'));
+                    $val = $until->format('Ymd\THis\Z');
+                }
                 break;
             case 'RDATE':
             case 'EXDATE':

@@ -743,6 +743,13 @@ class kolab_delegation_engine
     {
         $context = $this->delegator_context();
 
+        // try to derive context from the given user email
+        if (!$context && !empty($args['emails'])) {
+            if (($user = preg_replace('/@.+$/', '', $args['emails'][0])) && isset($_SESSION['delegators'][$user])) {
+                $context = $user;
+            }
+        }
+
         // return delegator's addresses
         if ($context) {
             $args['emails'] = $_SESSION['delegators'][$context];
@@ -792,7 +799,6 @@ class kolab_delegation_engine
             }
             if ($args['personal']) {
                 $ns   = $cal->get_namespace();
-                $name = $cal->get_realname(); // UTF-7 IMAP folder name
 
                 if (empty($context)) {
                     if ($ns != 'personal') {
@@ -806,7 +812,7 @@ class kolab_delegation_engine
 
                     foreach ($other_ns as $ns) {
                         $folder = $ns[0] . $context . $delim;
-                        if (strpos($name, $folder) !== 0) {
+                        if (strpos($cal->name, $folder) !== 0) {
                             continue;
                         }
                     }
