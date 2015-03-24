@@ -322,7 +322,7 @@ class caldav_driver extends database_driver
      *    url: Absolute URL to calendar server
      *    user: Username
      *    pass: Password
-     * @return array
+     * @return False on error or an array with the following calendar props:
      *    name: Calendar display name
      *    href: Absolute calendar URL
      */
@@ -341,13 +341,8 @@ class caldav_driver extends database_driver
         $caldav_url = $props["url"];
         $response = $caldav->prop_find($caldav_url, array_merge($current_user_principal,$cal_attribs), 0);
         if (!$response) {
-            self::debug_log("Resource \"$caldav_url\" has no collections, maybe an .ics file?");
-            array_push($calendars, array(
-//              'name' => $props['name'],
-                'name' => preg_replace('#\.ics$#', '', end(explode('/', $tokens['path']))),
-                'href' => $caldav_url,
-            ));
-            return $calendars;
+            self::debug_log("Resource \"$caldav_url\" has no collections");
+            return false;
         }
         else if (array_key_exists ('{DAV:}resourcetype', $response) &&
             $response['{DAV:}resourcetype'] instanceof Sabre\DAV\Property\ResourceType &&
@@ -371,7 +366,7 @@ class caldav_driver extends database_driver
         $response = $caldav->prop_find($caldav_url, $calendar_home_set, 0);
         if (!$response) {
             self::debug_log("Resource \"$caldav_url\" contains no calendars.");
-            return $calendars;
+            return false;
         }
         $caldav_url = $base_uri . $response[$calendar_home_set[0]];
         $response = $caldav->prop_find($caldav_url, $cal_attribs, 1);
@@ -509,7 +504,7 @@ class caldav_driver extends database_driver
         $calendars = $this->_autodiscover_calendars($pwd_expanded_props);
         $cal_ids = array();
 
-        if(sizeof($calendars) > 0)
+        if($calendars)
         {
             $result = true;
             foreach ($calendars as $calendar)
@@ -519,7 +514,11 @@ class caldav_driver extends database_driver
                     self::OBJ_TYPE_VCAL, $this->rc->user->ID))) continue;
 
                 $props['url'] = self::_encode_url($calendar['href']);
-                $props['name'] = $calendar['name'];
+
+                // Respect $props['name'] if only a single calendar was found e.g. no auto-discovery.
+                if(sizeof($calendars) > 1 || !isset($props['name'])  || $props['name'] == "")
+                    $props['name'] = $calendar['name'];
+
                 if (($obj_id = parent::create_calendar($props)) !== false) {
                     $result = $result && $this->_set_caldav_props($obj_id, self::OBJ_TYPE_VCAL, $props);
                     array_push($cal_ids, $obj_id);
@@ -527,16 +526,17 @@ class caldav_driver extends database_driver
             }
         }
 
-        // return if no new calendars where created
-        if (empty($cal_ids)) return $result;
+        // Sync newly created calendars
+        if($cal_ids) {
 
-        // Re-read calendars to internal buffer.
-        $this->_read_calendars();
+            // Re-read calendars to internal buffer.
+            $this->_read_calendars();
 
-        // Initial sync of newly created calendars.
-        $this->_init_sync_clients($cal_ids);
-        foreach($cal_ids as $cal_id){
-            $this->_sync_calendar($cal_id);
+            // Initial sync of newly created calendars.
+            $this->_init_sync_clients($cal_ids);
+            foreach ($cal_ids as $cal_id) {
+                $this->_sync_calendar($cal_id);
+            }
         }
 
         return $result;
@@ -792,6 +792,7 @@ class caldav_driver extends database_driver
      * @param array Hash array with event properties
      * @param array Internal use only, filled with non-modified event if this is second try after a calendar sync was enforced first.
      * @see calendar_driver::edit_event()
+     * @return bool
      */
     public function edit_event($event, $old_event = null)
     {
@@ -846,6 +847,7 @@ class caldav_driver extends database_driver
      * @param boolean Remove record irreversible
      *
      * @see calendar_driver::remove_event()
+     * @return bool
      */
     public function remove_event($event, $force = true)
     {
