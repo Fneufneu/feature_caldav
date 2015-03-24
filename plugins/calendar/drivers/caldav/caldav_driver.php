@@ -98,6 +98,15 @@ class caldav_driver extends database_driver
     }
 
     /**
+     * Helper method to log (if debug mode is enabled) and raise an user error.
+     */
+    private function _raise_error($msg)
+    {
+        self::debug_log($msg);
+        $this->rc->output->show_message($msg, 'error');
+    }
+
+    /**
      * Sets caldav properties.
      *
      * @param int $obj_id
@@ -341,7 +350,7 @@ class caldav_driver extends database_driver
         $caldav_url = $props["url"];
         $response = $caldav->prop_find($caldav_url, array_merge($current_user_principal,$cal_attribs), 0);
         if (!$response) {
-            self::debug_log("Resource \"$caldav_url\" has no collections");
+            $this->_raise_error("Resource \"$caldav_url\" has no collections");
             return false;
         }
         else if (array_key_exists ('{DAV:}resourcetype', $response) &&
@@ -365,7 +374,7 @@ class caldav_driver extends database_driver
         $caldav_url = $base_uri . $response[$current_user_principal[0]];
         $response = $caldav->prop_find($caldav_url, $calendar_home_set, 0);
         if (!$response) {
-            self::debug_log("Resource \"$caldav_url\" contains no calendars.");
+            $this->_raise_error("Resource \"$caldav_url\" contains no calendars.");
             return false;
         }
         $caldav_url = $base_uri . $response[$calendar_home_set[0]];
