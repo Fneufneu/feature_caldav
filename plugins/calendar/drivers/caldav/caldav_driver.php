@@ -114,7 +114,7 @@ class caldav_driver extends database_driver
      * @param array List of caldav properties:
      *   url: Absolute calendar URL or relative event URL.
      *   tag: Calendar ctag or event etag.
-     *  user: Authentication user in case of calendar obj.
+     *  username: Authentication user in case of calendar obj.
      *  pass: Authentication password in case of calendar obj.
      *
      * @return True on success, false otherwise.
@@ -131,13 +131,14 @@ class caldav_driver extends database_driver
         }
 
         $query = $this->rc->db->query(
-            "INSERT INTO ".$this->db_caldav_props." (obj_id, obj_type, url, tag, user, pass) ".
+            "INSERT INTO ".$this->db_caldav_props.
+            " (obj_id, obj_type, url, tag, username, pass) ".
             "VALUES (?, ?, ?, ?, ?, ?)",
             $obj_id,
             $obj_type,
             $props["url"],
             isset($props["tag"]) ? $props["tag"] : null,
-            isset($props["user"]) ? $props["user"] : null,
+            isset($props["username"]) ? $props["username"] : null,
             $password);
 
         return $this->rc->db->affected_rows($query);
@@ -151,7 +152,7 @@ class caldav_driver extends database_driver
      * @return array List of caldav properties or false on error:
      *    url: Absolute calendar URL or relative event URL.
      *    tag: Calendar ctag or event etag.
-     *   user: Authentication user in case of calendar obj.
+     *   username: Authentication user in case of calendar obj.
      *   pass: Authentication password in case of calendar obj.
      * last_change: Read-only DateTime obj of the last change.
      */
@@ -234,10 +235,10 @@ class caldav_driver extends database_driver
         // Atomic sql: Check for exceeded sync period and update last_change.
         $query = $this->rc->db->query(
             "UPDATE ".$this->db_caldav_props." ".
-            "SET last_change = CURRENT_TIMESTAMP ".
-            "WHERE obj_id = ? AND obj_type = ? ".
-            "AND last_change <= (CURRENT_TIMESTAMP - ?);",
-        $cal_id, self::OBJ_TYPE_VCAL, $this->sync_period);
+            "SET last_change = NOW() WHERE obj_id = ? AND obj_type = ? AND ". 
+            $this->unixtimestamp('last_change') ." + ? <= ".
+            $this->unixtimestamp('NOW()'),
+            $cal_id, self::OBJ_TYPE_VCAL, $this->sync_period);
 
         if($query->rowCount() > 0)
         {
@@ -261,14 +262,14 @@ class caldav_driver extends database_driver
      * @param array List of caldav properties
      *    url: Absolute calendar URL or relative event URL.
      *    tag: Calendar ctag or event etag.
-     *    user: Authentication user in case of calendar obj.
+     *    username: Authentication user in case of calendar obj.
      *    pass: Authentication password in case of calendar obj.
      *    last_change: Read-only DateTime obj of the last change.
      * 
      * @return array List of caldav properties, with expanded 'pass' element. Original array is modified too.
      *    url: Absolute calendar URL or relative event URL.
      *    tag: Calendar ctag or event etag.
-     *    user: Authentication user in case of calendar obj.
+     *    username: Authentication user in case of calendar obj.
      *    pass: Authentication password in case of calendar obj.
      *    last_change: Read-only DateTime obj of the last change.
      *      
@@ -329,7 +330,7 @@ class caldav_driver extends database_driver
      * Auto discover calenders available to the user on the caldav server
      * @param array $props
      *    url: Absolute URL to calendar server
-     *    user: Username
+     *    username: Username
      *    pass: Password
      * @return False on error or an array with the following calendar props:
      *    name: Calendar display name
@@ -343,7 +344,7 @@ class caldav_driver extends database_driver
         $cal_attribs = array('{DAV:}resourcetype', '{DAV:}displayname');
 
         require_once ($this->cal->home.'/lib/caldav-client.php');
-        $caldav = new caldav_client($props["url"], $props["user"], $props["pass"]);
+        $caldav = new caldav_client($props["url"], $props["username"], $props["pass"]);
 
         $tokens = parse_url($props["url"]);
         $base_uri = $tokens['scheme']."://".$tokens['host'].($tokens['port'] ? ":".$tokens['port'] : null);
@@ -476,7 +477,7 @@ class caldav_driver extends database_driver
 
         $formfields["caldav_user"] = array(
             "label" => $this->cal->gettext("username"),
-            "value" => $input_caldav_user->show($props["user"]),
+            "value" => $input_caldav_user->show($props["username"]),
             "id" => "caldav_user",
         );
 
@@ -505,7 +506,7 @@ class caldav_driver extends database_driver
         $result = false;
         $props = $prop;
         $props['url'] = self::_encode_url($prop["caldav_url"]);
-        $props['user'] = $prop["caldav_user"];
+        $props['username'] = $prop["caldav_user"];
         $props['pass'] = $prop["caldav_pass"];
         if(!isset($props['color'])) $props['color'] = 'cc0000';
         $pwd_expanded_props = $props;
@@ -568,7 +569,7 @@ class caldav_driver extends database_driver
 
             return $this->_set_caldav_props($prop["id"], self::OBJ_TYPE_VCAL, array(
                 "url" => self::_encode_url($prop["caldav_url"]),
-                "user" => $prop["caldav_user"],
+                "username" => $prop["caldav_user"],
                 "pass" => $prop["caldav_pass"]
             ));
         }
@@ -742,6 +743,23 @@ class caldav_driver extends database_driver
         self::debug_log("Successfully synced calendar id \"$cal_id\".");
     }
 
+    /**
+     * Returns db-specific timestamp queries for epoch format
+     *
+     * @param str column name or valid timestamp (e.g. NOW())
+     * @return str db-specific timestamp query for epoch format
+     */
+    private function unixtimestamp($field)
+    {
+      $rcmail = rcmail::get_instance();
+    
+      switch ($rcmail->db->db_provider) {
+        case 'postgres':
+          return "EXTRACT (EPOCH FROM $field)";
+        default:
+          return "UNIX_TIMESTAMP($field)";
+      }
+    }
 
     /**
      * Synchronizes events and loads them.

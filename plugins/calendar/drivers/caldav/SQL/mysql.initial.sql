@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS `caldav_props` (
   `obj_type` enum('vcal','vevent','vtodo','') NOT NULL,
   `url` varchar(255) NOT NULL,
   `tag` varchar(255) DEFAULT NULL,
-  `user` varchar(255) DEFAULT NULL,
+  `username` varchar(255) DEFAULT NULL,
   `pass` varchar(1024) DEFAULT NULL,
   `last_change` TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY `obj_id` (`obj_id`,`obj_type`)
