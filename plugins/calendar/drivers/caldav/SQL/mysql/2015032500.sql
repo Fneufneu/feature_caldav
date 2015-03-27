@@ -20,6 +20,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+/* Create new tables */
 CREATE TABLE IF NOT EXISTS `caldav_calendars` (
   `calendar_id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
   `user_id` int(10) UNSIGNED NOT NULL DEFAULT '0',
@@ -87,4 +88,38 @@ CREATE TABLE IF NOT EXISTS `caldav_attachments` (
   CONSTRAINT `fk_caldav_attachments_event_id` FOREIGN KEY (`event_id`)
   REFERENCES `events`(`event_id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) /*!40000 ENGINE=INNODB */ /*!40101 CHARACTER SET utf8 COLLATE utf8_general_ci */;
-REPLACE INTO `system` (`name`, `value`) VALUES ('calendar-caldav-version', '2015032500');
+
+/* Migrate Data */
+INSERT INTO caldav_calendars SELECT calendar_id, user_id, `name`, color, showalarms, url as caldav_url,
+                               tag as caldav_tag, username as caldav_user, pass as caldav_pass,
+                               last_change as caldav_last_change
+FROM calendars cal, caldav_props dav
+WHERE dav.obj_id = cal.calendar_id
+AND dav.obj_type = 'vcal';
+
+INSERT INTO caldav_events SELECT e.*, dav.url as caldav_url, dav.tag as caldav_tag, dav.last_change as caldav_last_change
+FROM `events` e, caldav_props dav
+WHERE dav.obj_id = e.event_id
+AND dav.obj_type = 'vevent';
+
+INSERT INTO caldav_attachments SELECT * FROM attachments a
+WHERE a.event_id IN (
+  SELECT obj_id FROM caldav_props dav
+  WHERE dav.obj_type = 'vevent'
+);
+
+/* Drop deprecated data */
+DELETE FROM `events` WHERE event_id IN (
+    SELECT obj_id FROM caldav_props dav
+    WHERE dav.obj_type = 'vevent'
+);
+DELETE FROM calendars WHERE calendar_id IN (
+  SELECT obj_id FROM caldav_props dav
+  WHERE dav.obj_type = 'vcal'
+);
+DELETE FROM attachments WHERE event_id IN (
+  SELECT obj_id FROM caldav_props dav
+  WHERE dav.obj_type = 'vevent'
+);
+DROP TABLE caldav_props;
+

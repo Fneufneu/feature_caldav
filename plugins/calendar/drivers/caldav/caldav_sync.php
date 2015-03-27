@@ -38,22 +38,20 @@ class caldav_sync
     /**
      *  Default constructor for calendar synchronization adapter.
      *
-     * @param int Calendar id.
-     * @param array Hash array with caldav properties:
-     *   url: Caldav calendar URL.
-     *  user: Caldav http basic auth user.
-     *  pass: Password für caldav user.
-     *  ctag: Caldav ctag for calendar.
+     * @param array Hash array with caldav properties at least the following:
+     *           id: Calendar ID
+     *   caldav_url: Caldav calendar URL.
+     *  caldav_user: Caldav http basic auth user.
+     *  caldav_pass: Password für caldav user.
+     *   caldav_tag: Caldav ctag for calendar.
      */
-    public function __construct($cal_id, $props)
+    public function __construct($cal)
     {
-        $this->cal_id = $cal_id;
-        
-        $this->url = $props["url"];
-        
-        $this->ctag = isset($props["tag"]) ? $props["tag"] : null;
-        $this->username = isset($props["username"]) ? $props["username"] : null;
-        $this->pass = isset($props["pass"]) ? $props["pass"] : null;
+        $this->cal_id = $cal["id"];
+        $this->url = $cal["caldav_url"];
+        $this->ctag = isset($cal["caldav_tag"]) ? $cal["caldav_tag"] : null;
+        $this->username = isset($cal["caldav_user"]) ? $cal["caldav_user"] : null;
+        $this->pass = isset($cal["caldav_pass"]) ? $cal["caldav_pass"] : null;
         
         $this->caldav = new caldav_client($this->url, $this->username, $this->pass);
     }
@@ -75,7 +73,7 @@ class caldav_sync
      *         indicates that there are changes that must be synched. Returns false
      *         if the calendar is up to date, no sync necesarry.
      */
-    public function is_synced($force = false)
+    public function is_synced()
     {
         $is_synced = $this->ctag == $this->caldav->get_ctag() && $this->ctag;
         caldav_driver::debug_log("Ctag indicates that calendar \"$this->cal_id\" ".($is_synced ? "is synced." : "needs update!"));
@@ -86,8 +84,7 @@ class caldav_sync
     /**
      * Synchronizes given events with caldav server and returns updates.
      *
-     * @param array List of local events.
-     * @param array List of caldav properties for each event.
+     * @param array List of hash arrays with event properties, must include "caldav_url" and "tag".
      * @return array Tuple containing the following lists:
      *
      * Caldav properties for events to be created or to be updated with the keys:
@@ -98,7 +95,7 @@ class caldav_sync
      *
      * A list of event ids that are in sync.
      */
-    public function get_updates($events, $caldav_props)
+    public function get_updates($events)
     {
         $ctag = $this->caldav->get_ctag();
 
@@ -107,7 +104,7 @@ class caldav_sync
             $this->ctag = $ctag;
             $etags = $this->caldav->get_etags();
 
-            list($updates, $synced_event_ids) = $this->_get_event_updates($events, $caldav_props, $etags);
+            list($updates, $synced_event_ids) = $this->_get_event_updates($events, $etags);
             return array($this->_get_event_data($updates), $synced_event_ids);
         }
         else
@@ -121,8 +118,7 @@ class caldav_sync
     /**
      * Determines sync status and requried updates for the given events using given list of etags.
      *
-     * @param array List of local events.
-     * @param array List of caldav properties for each event.
+     * @param array List of hash arrays with event properties, must include "caldav_url" and "caldav_tag".
      * @param array List of current remote etags.
      * @return array Tuple containing the following lists:
      *
@@ -133,7 +129,7 @@ class caldav_sync
      *
      * A list of event ids that are in sync.
      */
-    private function _get_event_updates($events, $caldav_props, $etags)
+    private function _get_event_updates($events, $etags)
     {
         $updates = array();
         $in_sync = array();
@@ -143,25 +139,25 @@ class caldav_sync
             $url = $etag["url"];
             $etag = $etag["etag"];
             $event_found = false;
-            for($i = 0; $i < sizeof($events); $i ++)
+            foreach($events as $event)
             {
-                if ($caldav_props[$i]["url"] == $url)
+                if ($event["caldav_url"] == $url)
                 {
                     $event_found = true;
 
-                    if ($caldav_props[$i]["tag"] != $etag)
+                    if ($event["caldav_tag"] != $etag)
                     {
-                        caldav_driver::debug_log("Event ".$events[$i]["uid"]." needs update.");
+                        caldav_driver::debug_log("Event ".$event["uid"]." needs update.");
 
                         array_push($updates, array(
-                            "local_event" => $events[$i],
+                            "local_event" => $event,
                             "etag" => $etag,
                             "url" => $url
                         ));
                     }
                     else
                     {
-                        array_push($in_sync, $events[$i]["id"]);
+                        array_push($in_sync, $event["id"]);
                     }
                 }
             }
@@ -211,48 +207,47 @@ class caldav_sync
     }
 
     /**
-     * Creates the given event on the caldav server.
+     * Creates the given event on the CalDAV server.
      *
      * @param array Hash array with event properties.
-     * @return Caldav properties with created URL on success, false on error.
+     * @return Event with updated "caldav_url" and "caldav_tag" attributes, false on error.
      */
     public function create_event($event)
     {
         $props = array(
-            "url" => parse_url($this->url, PHP_URL_PATH)."/".$event["uid"].".ics",
-            "tag" => null
+            "caldav_url" => parse_url($this->url, PHP_URL_PATH)."/".$event["uid"].".ics",
+            "caldav_tag" => null
         );
 
-        caldav_driver::debug_log("Push new event to url ".$props["url"]);
-        $result = $this->caldav->put_event($props["url"], $event);
+        caldav_driver::debug_log("Push new event to url ".$props["caldav_url"]);
+        $result = $this->caldav->put_event($props["caldav_url"], $event);
 
         if($result == false || $result < 0) return false;
-        return $props;
+        return array_merge($event, $props);
     }
 
     /**
-     * Updates the given event on the caldav server.
+     * Updates the given event on the CalDAV server.
      *
-     * @param array Hash array with event properties to update.
-     * @param array Hash array with caldav properties "url" and "tag" for the event.
+     * @param array Hash array with event properties to update, must include "uid", "caldav_url" and "caldav_tag".
      * @return True on success, false on error, -1 if the given event/etag is not up to date.
      */
-    public function update_event($event, $props)
+    public function update_event($event)
     {
         caldav_driver::debug_log("Updating event uid \"".$event["uid"]."\".");
-        return $this->caldav->put_event($props["url"], $event, $props["tag"]);
+        return $this->caldav->put_event($event["caldav_url"], $event, $event["caldav_tag"]);
     }
 
     /**
      * Removes the given event from the caldav server.
      *
-     * @param array Hash array with caldav properties "url" and "tag" for the event.
+     * @param array Hash array with events properties, must include "caldav_url".
      * @return True on success, false on error.
      */
-    public function remove_event($props)
+    public function remove_event($event)
     {
-        caldav_driver::debug_log("Removing event url \"".$props["url"]."\".");
-        return $this->caldav->remove_event($props["url"]);
+        caldav_driver::debug_log("Removing event uid \"".$event["uid"]."\".");
+        return $this->caldav->remove_event($event["caldav_url"]);
     }
 };
 ?>

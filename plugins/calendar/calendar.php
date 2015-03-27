@@ -2558,6 +2558,7 @@ class calendar extends rcube_plugin
       $day_end = new Datetime(gmdate('Y-m-d 23:59', $data['date']), $this->lib->timezone);
 
       // get events on that day from the user's personal calendars
+      // FIXME: $this->driver is deprecated
       $calendars = $this->driver->list_calendars(false, true);
       $events = $this->driver->load_events($day_start->format('U'), $day_end->format('U'), null, array_keys($calendars));
       usort($events, function($a, $b) { return $a['start'] > $b['start'] ? 1 : -1; });
