@@ -4,7 +4,7 @@
  * @version @package_version@
  * @author Daniel Morlock <daniel.morlock@awesome-it.de>
  *
- * Copyright (C) 2013, Awesome IT GbR <info@awesome-it.de>
+ * Copyright (C) Awesome IT GbR <info@awesome-it.de>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
