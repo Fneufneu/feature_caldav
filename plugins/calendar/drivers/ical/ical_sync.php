@@ -45,9 +45,9 @@ class ical_sync
         $this->ical = libcalendaring::get_ical();
         $this->cal_id = $cal_id;
 
-        $this->url = $props["url"];
-        $this->user = isset($props["user"]) ? $props["user"] : null;
-        $this->pass = isset($props["pass"]) ? $props["pass"] : null;
+        $this->url = $props["ical_url"];
+        $this->user = isset($props["ical_user"]) ? $props["ical_user"] : null;
+        $this->pass = isset($props["ical_pass"]) ? $props["ical_pass"] : null;
     }
 
     /**

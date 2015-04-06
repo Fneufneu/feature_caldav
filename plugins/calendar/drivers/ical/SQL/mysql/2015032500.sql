@@ -20,6 +20,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+/* Create new tables */
 CREATE TABLE IF NOT EXISTS `ical_calendars` (
   `calendar_id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
   `user_id` int(10) UNSIGNED NOT NULL DEFAULT '0',
@@ -86,4 +87,38 @@ CREATE TABLE IF NOT EXISTS `ical_attachments` (
   REFERENCES `events`(`event_id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) /*!40000 ENGINE=INNODB */ /*!40101 CHARACTER SET utf8 COLLATE utf8_general_ci */;
 
-REPLACE INTO `system` (`name`, `value`) VALUES ('calendar-ical-version', '2015032500');
+/* Migrate Data */
+INSERT INTO ical_calendars
+  SELECT calendar_id, user_id, `name`, color, showalarms,
+    url as ical_url, `user` as ical_user, pass as ical_pass,
+    last_change as ical_last_change
+  FROM calendars cal, ical_props dav
+  WHERE dav.obj_id = cal.calendar_id
+        AND dav.obj_type = 'vcal';
+
+INSERT INTO ical_events SELECT e.*, dav.url as ical_url, dav.last_change as ical_last_change
+FROM `events` e, ical_props dav
+WHERE dav.obj_id = e.event_id
+AND dav.obj_type = 'vevent';
+
+INSERT INTO ical_attachments SELECT * FROM attachments a
+WHERE a.event_id IN (
+  SELECT obj_id FROM ical_props dav
+  WHERE dav.obj_type = 'vevent'
+);
+
+/* Drop deprecated data */
+DELETE FROM `events` WHERE event_id IN (
+    SELECT obj_id FROM ical_props dav
+    WHERE dav.obj_type = 'vevent'
+);
+DELETE FROM calendars WHERE calendar_id IN (
+  SELECT obj_id FROM ical_props dav
+  WHERE dav.obj_type = 'vcal'
+);
+DELETE FROM attachments WHERE event_id IN (
+  SELECT obj_id FROM ical_props dav
+  WHERE dav.obj_type = 'vevent'
+);
+DROP TABLE ical_props;
+

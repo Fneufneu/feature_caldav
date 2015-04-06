@@ -1035,11 +1035,6 @@ class caldav_driver extends calendar_driver
             }
         }
 
-        // add events from the address books birthday calendar TODO: Remove
-        if (in_array(self::BIRTHDAY_CALENDAR_ID, $calendars) && empty($query)) {
-            $events = array_merge($events, $this->load_birthday_events($start, $end, $search, $modifiedsince));
-        }
-
         return $events;
     }
 
