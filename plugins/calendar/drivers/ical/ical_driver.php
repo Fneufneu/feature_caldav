@@ -22,10 +22,10 @@
  */
 
 require_once(dirname(__FILE__) . '/ical_sync.php');
+require_once (dirname(__FILE__).'/../../lib/encryption.php');
 
 /**
  * TODO
- * - Database constraint: obj_id, obj_type must be unique.
  * - Postgresql, Sqlite scripts.
  *
  */
@@ -57,10 +57,31 @@ class ical_driver extends calendar_driver
     private $sync_clients = array();
 
     // Min. time period to wait until sync check.
-    private $sync_period = 600; // seconds
+    private $sync_period = 10; // TODO: 600; // seconds
 
     // Crypt key for CalDAV auth
     private $crypt_key;
+
+    // Indicates debug mode for iCAL
+    static private $debug = null;
+
+    /**
+     * Helper method to log debug msg if debug mode is enabled.
+     */
+    static public function debug_log($msg)
+    {
+        if(self::$debug === true)
+            rcmail::console(__CLASS__.': '.$msg);
+    }
+
+    /**
+     * Helper method to log (if debug mode is enabled) and raise an user error.
+     */
+    private function _raise_error($msg)
+    {
+        self::debug_log($msg);
+        $this->rc->output->show_message($msg, 'error');
+    }
 
     /**
      * Default constructor
@@ -83,15 +104,6 @@ class ical_driver extends calendar_driver
             self::$debug = $this->rc->config->get('calendar_ical_debug', false);
 
         $this->_read_calendars();
-    }
-
-    /**
-     * Helper method to log debug msg if debug mode is enabled.
-     */
-    static public function debug_log($msg)
-    {
-        if (self::$debug === true)
-            rcmail::console(__CLASS__.': '.$msg);
     }
 
     /**
@@ -149,7 +161,17 @@ class ical_driver extends calendar_driver
 
         // 'personal' is unsupported in this driver
 
-        return $calendars;
+        return array_map(function($cal) {
+
+            // Make calendar readonly
+            $cal["readonly"] = true;
+
+            // But name should be editable!
+            $cal["editable_name"] = true;
+
+            return $cal;
+
+        }, $calendars);
     }
 
     /**
@@ -204,20 +226,20 @@ class ical_driver extends calendar_driver
             $prop['name'],
             $prop['color'],
             $prop['showalarms'] ? 1 : 0,
-            isset($cal["ical_tag"]) ? $cal["ical_tag"] : null,
-            isset($cal["ical_user"]) ? $cal["ical_user"] : null,
+            isset($prop["ical_url"]) ? $prop["ical_url"] : null,
+            isset($prop["ical_user"]) ? $prop["ical_user"] : null,
             $prop['id'],
             $this->rc->user->ID
         );
 
         // Change password if specified
-        if (isset($cal["ical_pass"])) {
+        if (isset($prop["ical_pass"])) {
             $query = $this->rc->db->query("UPDATE " . $this->db_calendars . "
             SET   ical_pass=?
             WHERE calendar_id=?
             AND   user_id=?",
-                $this->_encrypt_pass($cal['ical_pass']),
-                $cal['id'],
+                $this->_encrypt_pass($prop['ical_pass']),
+                $prop['id'],
                 $this->rc->user->ID
             );
         }
@@ -1259,6 +1281,59 @@ class ical_driver extends calendar_driver
         foreach (array($this->db_calendars, 'itipinvitations') as $table) {
             $db->query("DELETE FROM $table WHERE user_id=?", $user->ID);
         }
+    }
+
+    /**
+     * Callback function to produce driver-specific calendar create/edit form
+     *
+     * @param string Request action 'form-edit|form-new'
+     * @param array  Calendar properties (e.g. id, color)
+     * @param array  Edit form fields
+     *
+     * @return string HTML content of the form
+     */
+    public function calendar_form($action, $calendar, $formfields)
+    {
+        // Make sure we have current attributes
+        $calendar = $this->calendars[$calendar["id"]];
+
+        $input_ical_url = new html_inputfield(array(
+            "name" => "ical_url",
+            "id" => "ical_url",
+            "size" => 20
+        ));
+
+        $formfields["ical_url"] = array(
+            "label" => $this->cal->gettext("icalurl"),
+            "value" => $input_ical_url->show($calendar["ical_url"]),
+            "id" => "ical_url",
+        );
+
+        $input_ical_user = new html_inputfield( array(
+            "name" => "ical_user",
+            "id" => "ical_user",
+            "size" => 20
+        ));
+
+        $formfields["ical_user"] = array(
+            "label" => $this->cal->gettext("username"),
+            "value" => $input_ical_user->show($calendar["ical_user"]),
+            "id" => "ical_user",
+        );
+
+        $input_ical_pass = new html_passwordfield( array(
+            "name" => "ical_pass",
+            "id" => "ical_pass",
+            "size" => 20
+        ));
+
+        $formfields["ical_pass"] = array(
+            "label" => $this->cal->gettext("password"),
+            "value" => $input_ical_pass->show(null), // Don't send plain text password to GUI
+            "id" => "ical_pass",
+        );
+
+        return parent::calendar_form($action, $calendar, $formfields);
     }
 
     /**

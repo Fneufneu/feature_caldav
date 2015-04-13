@@ -64,9 +64,6 @@ CREATE TABLE IF NOT EXISTS `ical_events` (
   `attendees` text DEFAULT NULL,
   `notifyat` datetime DEFAULT NULL,
 
-  `ical_url` varchar(255) NOT NULL,
-  `ical_last_change` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-
   PRIMARY KEY(`event_id`),
   INDEX `ical_uid_idx` (`uid`),
   INDEX `ical_recurrence_idx` (`recurrence_id`),
@@ -90,21 +87,24 @@ CREATE TABLE IF NOT EXISTS `ical_attachments` (
 /* Migrate Data */
 INSERT INTO ical_calendars
   SELECT calendar_id, user_id, `name`, color, showalarms,
-    url as ical_url, `user` as ical_user, pass as ical_pass,
-    last_change as ical_last_change
+    url as ical_url, NULL as ical_user, NULL as ical_pass, last_change as ical_last_change
   FROM calendars cal, ical_props dav
   WHERE dav.obj_id = cal.calendar_id
-        AND dav.obj_type = 'vcal';
+        AND dav.obj_type = 'ical';
 
-INSERT INTO ical_events SELECT e.*, dav.url as ical_url, dav.last_change as ical_last_change
-FROM `events` e, ical_props dav
-WHERE dav.obj_id = e.event_id
-AND dav.obj_type = 'vevent';
+INSERT INTO ical_events SELECT e.* FROM `events` e
+  WHERE e.calendar_id IN (
+    SELECT obj_id FROM ical_props
+    WHERE obj_type = 'ical'
+  );
 
 INSERT INTO ical_attachments SELECT * FROM attachments a
 WHERE a.event_id IN (
-  SELECT obj_id FROM ical_props dav
-  WHERE dav.obj_type = 'vevent'
+  SELECT e.event_id FROM `events` e
+  WHERE e.calendar_id IN (
+    SELECT obj_id FROM ical_props
+    WHERE obj_type = 'ical'
+  )
 );
 
 /* Drop deprecated data */
@@ -114,7 +114,7 @@ DELETE FROM `events` WHERE event_id IN (
 );
 DELETE FROM calendars WHERE calendar_id IN (
   SELECT obj_id FROM ical_props dav
-  WHERE dav.obj_type = 'vcal'
+  WHERE dav.obj_type = 'ical'
 );
 DELETE FROM attachments WHERE event_id IN (
   SELECT obj_id FROM ical_props dav

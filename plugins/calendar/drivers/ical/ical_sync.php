@@ -88,8 +88,8 @@ class ical_sync
         $vcal = file_get_contents($this->url, false, $context);
         $updates = array();
         $synced = array();
-        if($vcal !== false)
-        {
+        if($vcal !== false) {
+
             // Hash existing events by uid.
             $events_hash = array();
             foreach($events as $event) {

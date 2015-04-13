@@ -1396,16 +1396,57 @@ class caldav_driver extends calendar_driver
         }
     }
 
-    private function _decrypt_pass($pass) {
-        $p = base64_decode($pass);
-        $e = new Encryption(MCRYPT_BlOWFISH, MCRYPT_MODE_CBC);
-        return $e->decrypt($p, $this->crypt_key);
-    }
+    /**
+     * Callback function to produce driver-specific calendar create/edit form
+     *
+     * @param string Request action 'form-edit|form-new'
+     * @param array  Calendar properties (e.g. id, color)
+     * @param array  Edit form fields
+     *
+     * @return string HTML content of the form
+     */
+    public function calendar_form($action, $calendar, $formfields)
+    {
+        // Make sure we have current attributes
+        $calendar = $this->calendars[$calendar["id"]];
 
-    private function _encrypt_pass($pass) {
-        $e = new Encryption(MCRYPT_BlOWFISH, MCRYPT_MODE_CBC);
-        $p = $e->encrypt($pass, $this->crypt_key);
-        return base64_encode($p);
+        $input_caldav_url = new html_inputfield( array(
+            "name" => "caldav_url",
+            "id" => "caldav_url",
+            "size" => 20
+        ));
+
+        $formfields["caldav_url"] = array(
+            "label" => $this->cal->gettext("caldavurl"),
+            "value" => $input_caldav_url->show($calendar["caldav_url"]),
+            "id" => "caldav_url",
+        );
+
+        $input_caldav_user = new html_inputfield( array(
+            "name" => "caldav_user",
+            "id" => "caldav_user",
+            "size" => 20
+        ));
+
+        $formfields["caldav_user"] = array(
+            "label" => $this->cal->gettext("username"),
+            "value" => $input_caldav_user->show($calendar["caldav_user"]),
+            "id" => "caldav_user",
+        );
+
+        $input_caldav_pass = new html_passwordfield( array(
+            "name" => "caldav_pass",
+            "id" => "caldav_pass",
+            "size" => 20
+        ));
+
+        $formfields["caldav_pass"] = array(
+            "label" => $this->cal->gettext("password"),
+            "value" => $input_caldav_pass->show(null), // Don't send plain text password to GUI
+            "id" => "caldav_pass",
+        );
+
+        return parent::calendar_form($action, $calendar, $formfields);
     }
 
     /**
@@ -1700,5 +1741,17 @@ class caldav_driver extends calendar_driver
             default:
                 return "UNIX_TIMESTAMP($field)";
         }
+    }
+
+    private function _decrypt_pass($pass) {
+        $p = base64_decode($pass);
+        $e = new Encryption(MCRYPT_BlOWFISH, MCRYPT_MODE_CBC);
+        return $e->decrypt($p, $this->crypt_key);
+    }
+
+    private function _encrypt_pass($pass) {
+        $e = new Encryption(MCRYPT_BlOWFISH, MCRYPT_MODE_CBC);
+        $p = $e->encrypt($pass, $this->crypt_key);
+        return base64_encode($p);
     }
 }
