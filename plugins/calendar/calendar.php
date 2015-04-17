@@ -1049,6 +1049,17 @@ class calendar extends rcube_plugin
     if (($event['_notify'] || $event['decline']) && $action != 'new')
       $old = $driver->get_event($event);
 
+    // Support event moving across different drivers
+    if(isset($event["_fromcalendar"]) && $event["_fromcalendar"] != $event["calendar"]) {
+      $fromdriver = $this->get_driver_by_cal($event["_fromcalendar"]);
+      if(get_class($fromdriver) != get_class($driver)) {
+        $fromevent = $event;
+        $fromevent["calendar"] = $event["_fromcalendar"];
+        if($fromdriver->remove_event($fromevent))
+          $action = "new";
+      }
+    }
+
     switch ($action) {
       case "new":
         // create UID for new event
