@@ -396,9 +396,13 @@ class calendar_ui
     $attrib['name'] = 'categories';
     $select = new html_select($attrib);
     $select->add('---', '');
+    $keys = array();
     foreach ($this->cal->get_drivers() as $driver) {
-      foreach (array_keys((array)$driver->list_categories()) as $cat) {
-        $select->add($cat, $cat);
+      foreach((array)$driver->list_categories() as $key => $color) {
+        if ($color && !in_array($key, $keys)) {
+          $select->add($key, $key);
+          array_push($keys, $key);
+        }
       }
     }
 
