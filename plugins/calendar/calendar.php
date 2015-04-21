@@ -2569,9 +2569,9 @@ class calendar extends rcube_plugin
       $day_end = new Datetime(gmdate('Y-m-d 23:59', $data['date']), $this->lib->timezone);
 
       // get events on that day from the user's personal calendars
-      // FIXME: $this->driver is deprecated
-      $calendars = $this->driver->list_calendars(false, true);
-      $events = $this->driver->load_events($day_start->format('U'), $day_end->format('U'), null, array_keys($calendars));
+      $driver = $this->get_driver_by_gpc();
+      $calendars = $driver->list_calendars(false, true);
+      $events = $driver->load_events($day_start->format('U'), $day_end->format('U'), null, array_keys($calendars));
       usort($events, function($a, $b) { return $a['start'] > $b['start'] ? 1 : -1; });
 
       $before = $after = array();
@@ -2606,8 +2606,11 @@ class calendar extends rcube_plugin
     $uid     = rcube_utils::get_input_value('uid', rcube_utils::INPUT_POST);
 
     // search for event if only UID is given
-    if ($event = $this->driver->get_event(array('uid' => $uid), true)) {
-      $success = $this->driver->remove_event($event, true);
+    foreach($this->get_drivers() as $driver) {
+      if ($event = $driver->get_event(array('uid' => $uid), true)) {
+        $success = $driver->remove_event($event, true);
+        break;
+      }
     }
 
     if ($success) {
@@ -3134,7 +3137,10 @@ class calendar extends rcube_plugin
     if (!empty($events)) {
       // find writeable calendar to store event
       $cal_id = !empty($_REQUEST['_calendar']) ? rcube_utils::get_input_value('_calendar', rcube_utils::INPUT_POST) : null;
-      $calendars = $this->driver->list_calendars(false, true);
+      $driver = null;
+      if($cal_id) $driver = $this->get_driver_by_cal($cal_id);
+      else $driver = $this->get_driver_by_gpc();
+      $calendars = $driver->list_calendars(false, true);
 
       foreach ($events as $event) {
         // save to calendar
@@ -3142,8 +3148,8 @@ class calendar extends rcube_plugin
         if ($calendar && !$calendar['readonly'] && $event['_type'] == 'event') {
           $event['calendar'] = $calendar['id'];
 
-          if (!$this->driver->get_event($event['uid'], true, false)) {
-            $success += (bool)$this->driver->new_event($event);
+          if (!$driver->get_event($event['uid'], true, false)) {
+            $success += (bool)$driver->new_event($event);
           }
           else {
             $existing++;
@@ -3184,10 +3190,10 @@ class calendar extends rcube_plugin
       $event['title'] = trim($message->subject);
       $event['description'] = trim($message->first_text_part());
 
-      $this->load_driver();
+      $driver = $this->get_default_driver();
 
       // add a reference to the email message
-      if ($msgref = $this->driver->get_message_reference($message->headers, $mbox)) {
+      if ($msgref = $driver->get_message_reference($message->headers, $mbox)) {
         $event['links'] = array($msgref);
       }
       // copy mail attachments to event
@@ -3242,10 +3248,9 @@ class calendar extends rcube_plugin
   {
     // set the submitted event ID as attachment
     if (!empty($args['param']['calendar_event'])) {
-      $this->load_driver();
-
       list($cal, $id) = explode(':', $args['param']['calendar_event'], 2);
-      if ($event = $this->driver->get_event(array('id' => $id, 'calendar' => $cal))) {
+      $driver = $this->get_driver_by_cal($cal);
+      if ($event = $driver->get_event(array('id' => $id, 'calendar' => $cal))) {
         $filename = asciiwords($event['title']);
         if (empty($filename))
           $filename = 'event';
@@ -3292,8 +3297,11 @@ class calendar extends rcube_plugin
    */
   public function user_delete($args)
   {
-     $this->load_driver();
-     return $this->driver->user_delete($args);
+    foreach($this->get_drivers() as $driver)
+      if(!$driver->user_delete($args))
+        return false;
+
+     return true;
   }
 
   /**
