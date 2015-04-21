@@ -63,8 +63,6 @@ class calendar extends rcube_plugin
 
   private $ical;
   private $itip;
-  private $driver;
-
 
   /**
    * Plugin initialization.
@@ -839,7 +837,7 @@ class calendar extends rcube_plugin
       $field_id = 'rcmfd_birthdays_alarm';
       $select_type = new html_select(array('name' => '_birthdays_alarm_type', 'id' => $field_id) + $input_attrib);
       $select_type->add($this->gettext('none'), '');
-      foreach ($this->driver->alarm_types as $type) {
+      foreach ($this->get_default_driver()->alarm_types as $type) { // TODO: Replace with dedicated birthday calendar as soon as it is available
         $select_type->add(rcube_label(strtolower("alarm{$type}option"), 'libcalendaring'), $type);
       }
 
@@ -983,24 +981,29 @@ class calendar extends rcube_plugin
         $query      = rcube_utils::get_input_value('q', rcube_utils::INPUT_GPC);
         $source     = rcube_utils::get_input_value('source', rcube_utils::INPUT_GPC);
 
-        // TODO: Multi-driver search
-        foreach ((array) $this->driver->search_calendars($query, $source) as $id => $prop) {
-          $editname = $prop['editname'];
-          unset($prop['editname']);  // force full name to be displayed
-          $prop['active'] = false;
+        $search_more_results = false;
+        foreach($this->get_drivers() as $driver) {
+          foreach ((array)$driver->search_calendars($query, $source) as $id => $prop) {
+            $editname = $prop['editname'];
+            unset($prop['editname']);  // force full name to be displayed
+            $prop['active'] = false;
 
-          // let the UI generate HTML and CSS representation for this calendar
-          $html = $this->ui->calendar_list_item($id, $prop, $jsenv);
-          $cal = $jsenv[$id];
-          $cal['editname'] = $editname;
-          $cal['html'] = $html;
-          if (!empty($prop['color']))
-            $cal['css'] = $this->ui->calendar_css_classes($id, $prop, $color_mode);
+            // let the UI generate HTML and CSS representation for this calendar
+            $html = $this->ui->calendar_list_item($id, $prop, $jsenv);
+            $cal = $jsenv[$id];
+            $cal['editname'] = $editname;
+            $cal['html'] = $html;
+            if (!empty($prop['color']))
+              $cal['css'] = $this->ui->calendar_css_classes($id, $prop, $color_mode);
 
-          $results[] = $cal;
+            $results[] = $cal;
+          }
+
+          $search_more_results |= $driver->search_more_results;
         }
+
         // report more results available
-        if ($this->driver->search_more_results)
+        if ($search_more_results)
           $this->rc->output->show_message('autocompletemore', 'info');
 
         $this->rc->output->command('multi_thread_http_response', $results, rcube_utils::get_input_value('_reqid', rcube_utils::INPUT_GPC));
@@ -1294,7 +1297,7 @@ class calendar extends rcube_plugin
         break;
 
       case "restore":
-        if ($success = $this->driver->restore_event_revision($event, $event['rev'])) {
+        if ($success = $driver->restore_event_revision($event, $event['rev'])) {
 
         }
         else {
@@ -1454,7 +1457,7 @@ class calendar extends rcube_plugin
         // refresh count for this calendar
         if ($cal['counts']) {
           $today = new DateTime('today 00:00:00', $this->timezone);
-          $counts += $this->driver->count_events($cal['id'], $today->format('U'));
+          $counts += $driver->count_events($cal['id'], $today->format('U'));
         }
       }
     }
@@ -1484,7 +1487,8 @@ class calendar extends rcube_plugin
     if ($this->rc->config->get('calendar_contact_birthdays') && $this->rc->config->get('calendar_birthdays_alarm_type') == 'DISPLAY') {
       $cache = $this->rc->get_cache('calendar.birthdayalarms', 'db');
 
-      foreach ($this->driver->load_birthday_events($time, $time + 86400 * 60) as $e) {
+      // TODO: Use dedicated birthday calendar as soon as it exists
+      foreach ($this->get_default_driver()->load_birthday_events($time, $time + 86400 * 60) as $e) {
         $alarm = libcalendaring::get_next_alarm($e);
 
         // overwrite alarm time with snooze value (or null if dismissed)
@@ -1709,7 +1713,7 @@ class calendar extends rcube_plugin
       header("Content-Type: text/calendar");
       header("Content-Disposition: inline; filename=".$filename.'.ics');
 
-      $this->get_ical()->export($events, '', true, $attachments ? array($this->driver, 'get_attachment_body') : null);
+      $this->get_ical()->export($events, '', true, $attachments ? array($driver, 'get_attachment_body') : null);
 
       if ($terminate)
         exit;
@@ -1851,10 +1855,13 @@ class calendar extends rcube_plugin
       $event['attachments'][$k]['classname'] = rcube_utils::file2class($attachment['mimetype'], $attachment['name']);
     }
 
+    // Get driver for event calendar
+    $driver = $this->get_driver_by_cal($event['calendar']);
+
     // convert link URIs references into structs
     if (array_key_exists('links', $event)) {
       foreach ((array)$event['links'] as $i => $link) {
-        if (strpos($link, 'imap://') === 0 && ($msgref = $this->driver->get_message_reference($link))) {
+        if (strpos($link, 'imap://') === 0 && ($msgref = $driver->get_message_reference($link))) {
           $event['links'][$i] = $msgref;
         }
       }
@@ -2528,18 +2535,19 @@ class calendar extends rcube_plugin
    */
   function event_itip_status()
   {
+    $driver = $this->get_driver_by_gpc();
     $data = rcube_utils::get_input_value('data', rcube_utils::INPUT_POST, true);
 
     // find local copy of the referenced event
     $this->load_driver();
-    $existing = $this->driver->get_event($data, true, false, true);
+    $existing = $driver->get_event($data, true, false, true);
 
     $itip = $this->load_itip();
     $response = $itip->get_itip_status($data, $existing);
 
     // get a list of writeable calendars to save new events to
     if (!$existing && !$data['nosave'] && $response['action'] == 'rsvp' || $response['action'] == 'import') {
-      $calendars = $this->driver->list_calendars(false, true);
+      $calendars = $driver->list_calendars(false, true);
       $calendar_select = new html_select(array('name' => 'calendar', 'id' => 'itip-saveto', 'is_escaped' => true));
       $calendar_select->add('--', '');
       $numcals = 0;
@@ -3257,7 +3265,7 @@ class calendar extends rcube_plugin
 
         // save ics to a temp file and register as attachment
         $tmp_path = tempnam($this->rc->config->get('temp_dir'), 'rcmAttmntCal');
-        file_put_contents($tmp_path, $this->get_ical()->export(array($event), '', false, array($this->driver, 'get_attachment_body')));
+        file_put_contents($tmp_path, $this->get_ical()->export(array($event), '', false, array($driver, 'get_attachment_body')));
 
         $args['attachments'][] = array('path' => $tmp_path, 'name' => $filename . '.ics', 'mimetype' => 'text/calendar');
         $args['param']['subject'] = $event['title'];
@@ -3316,11 +3324,10 @@ class calendar extends rcube_plugin
       case 'itip':
         return $this->load_itip();
 
-      /* TODO: Not possible for multi-driver support
       case 'driver':
-        $this->load_driver();
-        return $this->driver;
-      */
+        $driver = $this->get_driver_by_gpc(true);
+        if(!$driver) $driver = $this->get_default_driver();
+        return $driver;
     }
 
     return null;
