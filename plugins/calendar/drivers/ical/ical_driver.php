@@ -166,6 +166,9 @@ class ical_driver extends calendar_driver
             // Make calendar readonly
             $cal["readonly"] = true;
 
+            // Readonly but deletable
+            $cal["deletable"] = true;
+
             // But name should be editable!
             $cal["editable_name"] = true;
 
