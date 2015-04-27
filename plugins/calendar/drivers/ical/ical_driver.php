@@ -103,6 +103,10 @@ class ical_driver extends calendar_driver
         if (self::$debug === null)
             self::$debug = $this->rc->config->get('calendar_ical_debug', false);
 
+        // PHP's fopen wrappers must be allowed
+        if(!ini_get("allow_url_fopen"))
+            self::_raise_error("iCAL driver needs PHP's fopen wrappers to be allowed!");
+
         $this->_read_calendars();
     }
 
