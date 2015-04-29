@@ -113,6 +113,11 @@ class kolab_addressbook extends rcube_plugin
         foreach ($this->_list_sources() as $abook_id => $abook) {
             // register this address source
             $sources[$abook_id] = $this->abook_prop($abook_id, $abook);
+
+            // flag folders with 'i' right as writeable
+            if ($this->rc->action == 'add' && strpos($abook->rights, 'i') !== false) {
+                $sources[$abook_id]['readonly'] = false;
+            }
         }
 
         // Add personal address sources to the list
@@ -145,7 +150,7 @@ class kolab_addressbook extends rcube_plugin
                 'listname' => $abook->get_foldername(),
                 'group'    => $abook instanceof kolab_storage_folder_user ? 'user' : $abook->get_namespace(),
                 'readonly' => true,
-                'editable' => false,
+                'rights'   => 'l',
                 'kolab'    => true,
                 'virtual'  => true,
             );
@@ -156,7 +161,7 @@ class kolab_addressbook extends rcube_plugin
                 'name'     => $abook->get_name(),
                 'listname' => $abook->get_foldername(),
                 'readonly' => $abook->readonly,
-                'editable' => $abook->editable,
+                'rights'   => $abook->rights,
                 'groups'   => $abook->groups,
                 'undelete' => $abook->undelete && $this->rc->config->get('undo_timeout'),
                 'realname' => rcube_charset::convert($abook->get_realname(), 'UTF7-IMAP'), // IMAP folder name
@@ -219,11 +224,14 @@ class kolab_addressbook extends rcube_plugin
             if (!empty($folder->children)) {
                 $child_html = $this->folder_tree_html($folder, $data, $jsdata);
 
-                if (!empty($child_html) && preg_match('!</ul>\n*$!', $content)) {
-                    $content = preg_replace('!</ul>\n*$!', $child_html . '</ul>', $content);
+                // copy group items...
+                if (preg_match('!<ul[^>]*>(.*)</ul>\n*$!Ums', $content, $m)) {
+                    $child_html = $m[1] . $child_html;
+                    $content = substr($content, 0, -strlen($m[0]) - 1);
                 }
-                else if (!empty($child_html)) {
-                    $content .= html::tag('ul', array('style' => ($is_collapsed ? "display:none;" : null)), $child_html);
+                // ... and re-create the subtree
+                if (!empty($child_html)) {
+                    $content .= html::tag('ul', array('class' => 'groups', 'style' => ($is_collapsed ? "display:none;" : null)), $child_html);
                 }
             }
 
@@ -288,7 +296,7 @@ class kolab_addressbook extends rcube_plugin
                     'type' => 'checkbox',
                     'name' => '_source[]',
                     'value' => $id,
-                    'checked' => $prop['active'],
+                    'checked' => false,
                     'aria-labelledby' => $label_id,
                 ));
             }
@@ -387,6 +395,14 @@ class kolab_addressbook extends rcube_plugin
 
             if ($folder && $folder->type == 'contact') {
                 $p['instance'] = new rcube_kolab_contacts($folder->name);
+
+                // flag source as writeable if 'i' right is given
+                if ($p['writeable'] && $this->rc->action == 'save' && strpos($p['instance']->rights, 'i') !== false) {
+                    $p['instance']->readonly = false;
+                }
+                else if ($this->rc->action == 'delete' && strpos($p['instance']->rights, 't') !== false) {
+                    $p['instance']->readonly = false;
+                }
             }
         }
 

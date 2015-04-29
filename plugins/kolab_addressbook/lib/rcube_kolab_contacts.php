@@ -29,8 +29,8 @@
 class rcube_kolab_contacts extends rcube_addressbook
 {
     public $primary_key = 'ID';
+    public $rights   = 'lrs';
     public $readonly = true;
-    public $editable = false;
     public $undelete = true;
     public $groups = true;
     public $coltypes = array(
@@ -122,19 +122,18 @@ class rcube_kolab_contacts extends rcube_addressbook
         $this->storagefolder = kolab_storage::get_folder($this->imap_folder);
         $this->ready = $this->storagefolder && !PEAR::isError($this->storagefolder);
 
-        // Set readonly and editable flags according to folder permissions
+        // Set readonly and rights flags according to folder permissions
         if ($this->ready) {
             if ($this->storagefolder->get_owner() == $_SESSION['username']) {
-                $this->editable = true;
                 $this->readonly = false;
+                $this->rights = 'lrswikxtea';
             }
             else {
                 $rights = $this->storagefolder->get_myrights();
-                if (!PEAR::isError($rights)) {
-                    if (strpos($rights, 'i') !== false)
+                if ($rights && !PEAR::isError($rights)) {
+                    $this->rights = $rights;
+                    if (strpos($rights, 'i') !== false && strpos($rights, 't') !== false)
                         $this->readonly = false;
-                    if (strpos($rights, 'a') !== false || strpos($rights, 'x') !== false)
-                        $this->editable = true;
                 }
             }
         }
@@ -467,26 +466,26 @@ class rcube_kolab_contacts extends rcube_addressbook
             }
 
             $found = array();
+            $contents = '';
             foreach (preg_grep($regexp, array_keys($contact)) as $col) {
                 $pos     = strpos($col, ':');
                 $colname = $pos ? substr($col, 0, $pos) : $col;
-                $search  = $advanced ? $value[array_search($colname, $fields)] : $value;
 
                 foreach ((array)$contact[$col] as $val) {
-                    if ($this->compare_search_value($colname, $val, $search, $mode)) {
-                        if (!$advanced) {
-                            $this->filter['ids'][] = $id;
-                            break 2;
-                        }
-                        else {
-                            $found[$colname] = true;
-                        }
+                    if ($advanced) {
+                        $found[$colname] = $this->compare_search_value($colname, $val, $value[array_search($colname, $fields)], $mode);
+                    }
+                    else {
+                        $contents .= ' ' . join(' ', (array)$val);
                     }
                 }
             }
 
-            if (count($found) >= $scount) // && $advanced
+            // compare matches
+            if (($advanced && count($found) >= $scount) ||
+                (!$advanced && rcube_utils::words_match(mb_strtolower($contents), $value))) {
                 $this->filter['ids'][] = $id;
+            }
         }
 
         // dummy result with contacts count
@@ -1002,9 +1001,11 @@ class rcube_kolab_contacts extends rcube_addressbook
         // validate e-mail addresses
         $valid = parent::validate($save_data);
 
-        // require at least one e-mail address (syntax check is already done)
+        // require at least one e-mail address if there's no name
+        // (syntax check is already done)
         if ($valid) {
             if (!strlen($save_data['name'])
+                && !strlen($save_data['organization'])
                 && !array_filter($this->get_col_values('email', $save_data, true))
             ) {
                 $this->set_error('warning', 'kolab_addressbook.noemailnamewarning');

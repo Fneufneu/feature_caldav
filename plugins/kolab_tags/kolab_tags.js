@@ -40,7 +40,8 @@ window.rcmail && rcmail.addEventListener('init', function() {
 
         // display tags in message subject (message window)
         if (msg_view) {
-            rcmail.enable_command('tag-add', 'tag-remove', 'tag-remove-all', rcmail.env.tags.length);
+            rcmail.enable_command('tag-add', true);
+            rcmail.enable_command('tag-remove', 'tag-remove-all', rcmail.env.tags.length);
             message_tags(rcmail.env.message_tags);
         }
 
@@ -349,7 +350,7 @@ function update_tags(response)
     tag_selector_reset();
 
     // remove deleted tags
-    remove_tags(response['delete']);
+    remove_tags(response['delete'], response.mark);
 
     // add new tags
     $.each(response.add || [], function() {
@@ -422,8 +423,7 @@ function remove_tags(tags, selection)
     $.each(tags, function() {
         var i, id = this,
             filter = function() { return $(this).data('tag') == id; },
-            elements = tagboxes.filter(filter),
-            selected = $.inArray(String(id), tagsfilter);
+            elements = tagboxes.filter(filter);
 
         // ... from the messages list (or message page)
         elements.remove();
@@ -447,8 +447,7 @@ function remove_tags(tags, selection)
         }
 
         // if tagged messages found and tag was selected - refresh the list
-        if (selected > -1) {
-            tagsfilter.splice(selected, 1);
+        if (!update_filter && $.inArray(String(id), tagsfilter) > -1) {
             update_filter = true;
         }
     });
@@ -548,17 +547,13 @@ function tag_remove(props, obj, event)
     }
 
     var postdata = rcmail.selection_post_data(),
-        tags = props != '*' ? [props] : $.map(rcmail.env.tags, function(tag) { return tag.uid; })
-        win = window.parent && parent.rcmail && parent.remove_tags ? parent : window;
+        tags = props != '*' ? [props] : $.map(rcmail.env.tags, function(tag) { return tag.uid; }),
+        rc = window.parent && parent.rcmail && parent.remove_tags ? parent.rcmail : rcmail;
 
     postdata._tag = props;
     postdata._act = 'remove';
 
-    rcmail.http_post('plugin.kolab_tags', postdata, true);
-
-    // remove tags from message(s) without waiting to a response
-    // in case of an error the list will be refreshed
-    win.remove_tags(tags, true);
+    rc.http_post('plugin.kolab_tags', postdata, true);
 }
 
 // executes messages search according to selected messages
@@ -579,13 +574,18 @@ function search_request(url)
     if (tagsfilter.length) {
         url._filter = 'kolab_tags_' + (new Date).getTime() + ':' + tagsfilter.join(',') + ':' + (url._filter || 'ALL');
 
+        // force search request, needed to keep tag filter when changing folder
+        if (url._page == 1)
+            url._action = 'search';
+
         return url;
     }
 }
 
 function message_list_select(list)
 {
-    rcmail.enable_command('tag-add', 'tag-remove', 'tag-remove-all', rcmail.env.tags.length && list.selection.length);
+    rcmail.enable_command('tag-remove', 'tag-remove-all', rcmail.env.tags.length && list.selection.length);
+    rcmail.enable_command('tag-add', list.selection.length);
 }
 
 // add tags to message subject on message list

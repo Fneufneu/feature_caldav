@@ -261,6 +261,7 @@ $labels['changeeventconfirm'] = 'Change event';
 $labels['removeeventconfirm'] = 'Delete event';
 $labels['changerecurringeventwarning'] = 'This is a recurring event. Would you like to edit the current event only, this and all future occurences, all occurences or save it as a new event?';
 $labels['removerecurringeventwarning'] = 'This is a recurring event. Would you like to delete the current event only, this and all future occurences or all occurences of this event?';
+$labels['removerecurringallonly'] = 'This is a recurring event. As a participant, you can only delete the entire event with all occurences.';
 $labels['currentevent'] = 'Current';
 $labels['futurevents'] = 'Future';
 $labels['allevents'] = 'All';
@@ -275,8 +276,8 @@ $labels['birthdayeventtitle'] = '$name\'s Birthday';
 $labels['birthdayage'] = 'Age $age';
 
 // history dialog
-$labels['eventchangelog'] = 'Change History';
-$labels['eventdiff'] = 'Changes from revisions $rev';
+$labels['objectchangelog'] = 'Change History';
+$labels['objectdiff'] = 'Changes from $rev1 to $rev2';
 $labels['revision'] = 'Revision';
 $labels['user'] = 'User';
 $labels['operation'] = 'Action';
@@ -286,10 +287,12 @@ $labels['actiondelete'] = 'Deleted';
 $labels['compare'] = 'Compare';
 $labels['showrevision'] = 'Show this version';
 $labels['restore'] = 'Restore this version';
-$labels['eventnotfound'] = 'Failed to load event data';
-$labels['eventchangelognotavailable'] = 'Change history is not available for this event';
-$labels['eventdiffnotavailable'] = 'No comparison possible for the selected revisions';
-$labels['eventrestoreconfirm'] = 'Do you really want to restore revision $rev of this event? This will replace the current event with the old version.';
+$labels['objectnotfound'] = 'Failed to load event data';
+$labels['objectchangelognotavailable'] = 'Change history is not available for this event';
+$labels['objectdiffnotavailable'] = 'No comparison possible for the selected revisions';
+$labels['revisionrestoreconfirm'] = 'Do you really want to restore revision $rev of this event? This will replace the current event with the old version.';
+$labels['objectrestoresuccess'] = 'Revision $rev successfully restored';
+$labels['objectrestoreerror'] = 'Failed to restore the old revision';
 
 
 // (hidden) titles and labels for accessibility annotations

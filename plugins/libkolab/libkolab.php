@@ -92,6 +92,10 @@ class libkolab extends rcube_plugin
             $http_config = array_merge($http_config, $config);
         }
 
+        // force CURL adapter, this allows to handle correctly
+        // compressed responses with SplObserver registered (kolab_files) (#4507)
+        $http_config['adapter'] = 'HTTP_Request2_Adapter_Curl';
+
         $key = md5(serialize($http_config));
 
         if (!($request = self::$http_requests[$key])) {
@@ -126,6 +130,24 @@ class libkolab extends rcube_plugin
     }
 
     /**
+     * Table oultine for object changelog display
+     */
+    public static function object_changelog_table($attrib = array())
+    {
+        $rcube = rcube::get_instance();
+
+        $table = new html_table(array('cols' => 5, 'border' => 0, 'cellspacing' => 0));
+        $table->add_header('diff',      '');
+        $table->add_header('revision',  $rcube->gettext('revision', $attrib['domain']));
+        $table->add_header('date',      $rcube->gettext('date', $attrib['domain']));
+        $table->add_header('user',      $rcube->gettext('user', $attrib['domain']));
+        $table->add_header('operation', $rcube->gettext('operation', $attrib['domain']));
+        $table->add_header('actions',   '&nbsp;');
+
+        return $table->show($attrib);
+    }
+
+    /**
      * Wrapper function for generating a html diff using the FineDiff class by Raymond Hill
      */
     public static function html_diff($from, $to)
@@ -134,5 +156,16 @@ class libkolab extends rcube_plugin
 
       $diff = new FineDiff($from, $to, FineDiff::$wordGranularity);
       return $diff->renderDiffToHTML();
+    }
+
+    /**
+     * Return a date() format string to render identifiers for recurrence instances
+     *
+     * @param array Hash array with event properties
+     * @return string Format string
+     */
+    public static function recurrence_id_format($event)
+    {
+        return $event['allday'] ? 'Ymd' : 'Ymd\THis';
     }
 }

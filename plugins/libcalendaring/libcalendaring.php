@@ -13,7 +13,7 @@
  * @version @package_version@
  * @author Thomas Bruederli <bruederli@kolabsys.com>
  *
- * Copyright (C) 2012-2014, Kolab Systems AG <contact@kolabsys.com>
+ * Copyright (C) 2012-2015, Kolab Systems AG <contact@kolabsys.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -341,7 +341,7 @@ class libcalendaring extends rcube_plugin
             $select_offset->add($this->gettext('trigger@'), '@');
 
         // pre-set with default values from user settings
-        $preset = self::parse_alaram_value($this->rc->config->get('calendar_default_alarm_offset', '-15M'));
+        $preset = self::parse_alarm_value($this->rc->config->get('calendar_default_alarm_offset', '-15M'));
         $hidden = array('style' => 'display:none');
         $html = html::span('edit-alarm-set',
             $select_type->show($this->rc->config->get('calendar_default_alarm_type', '')) . ' ' .
@@ -401,17 +401,28 @@ class libcalendaring extends rcube_plugin
      * @param string  The PARTSTAT value to set
      * @return mixed  Email address of the updated attendee or False if none matching found
      */
-    public function set_partstat(&$event, $status)
+    public function set_partstat(&$event, $status, $recursive = true)
     {
+        $success = false;
         $emails = $this->get_user_emails();
         foreach ((array)$event['attendees'] as $i => $attendee) {
             if ($attendee['email'] && in_array(strtolower($attendee['email']), $emails)) {
                 $event['attendees'][$i]['status'] = strtoupper($status);
-                return $attendee['email'];
+                $success = $attendee['email'];
             }
         }
 
-        return false;
+        // apply partstat update to each existing exception
+        if ($event['recurrence'] && is_array($event['recurrence']['EXCEPTIONS'])) {
+            foreach ($event['recurrence']['EXCEPTIONS'] as $i => $exception) {
+                $this->set_partstat($event['recurrence']['EXCEPTIONS'][$i], $status, false);
+            }
+
+            // set link to top-level exceptions
+            $event['exceptions'] = &$event['recurrence']['EXCEPTIONS'];
+        }
+
+        return $success;
     }
 
 
@@ -421,7 +432,7 @@ class libcalendaring extends rcube_plugin
      * Helper function to convert alarm trigger strings
      * into two-field values (e.g. "-45M" => 45, "-M")
      */
-    public static function parse_alaram_value($val)
+    public static function parse_alarm_value($val)
     {
         if ($val[0] == '@') {
             return array(new DateTime($val));
@@ -432,6 +443,12 @@ class libcalendaring extends rcube_plugin
             foreach ($m2 as $seg) {
                 $prefix = $seg[2] == 'D' || $seg[2] == 'W' ? 'P' : 'PT';
                 if ($seg[1] > 0) {  // ignore zero values
+                    // convert seconds to minutes
+                    if ($seg[2] == 'S') {
+                        $seg[2] = 'M';
+                        $seg[1] = max(1, round($seg[1]/60));
+                    }
+
                     return array($seg[1], $m[1].$seg[2], $m[1].$seg[1].$seg[2], $m[1].$prefix.$seg[1].$seg[2]);
                 }
             }
@@ -452,7 +469,7 @@ class libcalendaring extends rcube_plugin
             if ($alarm['trigger'] instanceof DateTime) {
                 $alarm['trigger'] = '@' . $alarm['trigger']->format('U');
             }
-            else if ($trigger = libcalendaring::parse_alaram_value($alarm['trigger'])) {
+            else if ($trigger = libcalendaring::parse_alarm_value($alarm['trigger'])) {
                 $alarm['trigger'] = $trigger[2];
             }
             return $alarm;
@@ -472,7 +489,7 @@ class libcalendaring extends rcube_plugin
                 }
                 catch (Exception $e) { /* handle this ? */ }
             }
-            else if ($trigger = libcalendaring::parse_alaram_value($alarm['trigger'])) {
+            else if ($trigger = libcalendaring::parse_alarm_value($alarm['trigger'])) {
                 $alarm['trigger'] = $trigger[3];
             }
             return $alarm;
@@ -538,7 +555,7 @@ class libcalendaring extends rcube_plugin
                 'vars' => array('datetime' => $rcube->format_date($m[1]))
             ));
         }
-        else if ($val = self::parse_alaram_value($trigger)) {
+        else if ($val = self::parse_alarm_value($trigger)) {
             // TODO: for all-day events say 'on date of event at XX' ?
             if ($val[0] == 0)
                 $text .= ' ' . $rcube->gettext('libcalendaring.triggerattime');
@@ -577,7 +594,7 @@ class libcalendaring extends rcube_plugin
         // support legacy format
         if (!$rec['valarms']) {
             list($trigger, $action) = explode(':', $rec['alarms'], 2);
-            if ($alarm = self::parse_alaram_value($trigger)) {
+            if ($alarm = self::parse_alarm_value($trigger)) {
                 $rec['valarms'] = array(array('action' => $action, 'trigger' => $alarm[3] ?: $alarm[0]));
             }
         }
@@ -1304,6 +1321,9 @@ class libcalendaring extends rcube_plugin
                 $charset = $part->ctype_parameters['charset'] ?: RCMAIL_CHARSET;
                 $this->mail_ical_parser->import($this->ical_message->get_part_body($mime_id, true), $charset);
 
+                // check if the parsed object is an instance of a recurring event/task
+                array_walk($this->mail_ical_parser->objects, 'libcalendaring::identify_recurrence_instance');
+
                 // stop on the part that has an iTip method specified
                 if (count($this->mail_ical_parser->objects) && $this->mail_ical_parser->method) {
                     $this->mail_ical_parser->message_date = $this->ical_message->headers->date;
@@ -1368,6 +1388,9 @@ class libcalendaring extends rcube_plugin
             $object['_sender'] = preg_match(self::$email_regex, $headers->from, $m) ? $m[1] : '';
             $object['_sender_utf'] = rcube_utils::idn_to_utf8($object['_sender']);
 
+            // check if this is an instance of a recurring event/task
+            self::identify_recurrence_instance($object);
+
             return $object;
         }
 
@@ -1387,6 +1410,63 @@ class libcalendaring extends rcube_plugin
             // Apple sends files as application/x-any (!?)
             ($part->mimetype == 'application/x-any' && $part->filename && preg_match('/\.ics$/i', $part->filename))
         );
+    }
+
+    /**
+     * Single occourrences of recurring events are identified by their RECURRENCE-ID property
+     * in iCal which is represented as 'recurrence_date' in our internal data structure.
+     *
+     * Check if such a property exists and derive the '_instance' identifier and '_savemode'
+     * attributes which are used in the storage backend to identify the nested exception item.
+     */
+    public static function identify_recurrence_instance(&$object)
+    {
+        // for savemode=all, remove recurrence instance identifiers
+        if (!empty($object['_savemode']) && $object['_savemode'] == 'all' && $object['recurrence']) {
+            unset($object['_instance'], $object['recurrence_date']);
+        }
+        // set instance and 'savemode' according to recurrence-id
+        else if (!empty($object['recurrence_date']) && is_a($object['recurrence_date'], 'DateTime')) {
+            $object['_instance'] = self::recurrence_instance_identifier($object);
+            $object['_savemode'] = $object['thisandfuture'] ? 'future' : 'current';
+        }
+        else if (!empty($object['recurrence_id']) && !empty($object['_instance'])) {
+            if (strlen($object['_instance']) > 4) {
+                $object['recurrence_date'] = rcube_utils::anytodatetime($object['_instance'], $object['start']->getTimezone());
+            }
+            else {
+                $object['recurrence_date'] = clone $object['start'];
+            }
+        }
+    }
+
+    /**
+     * Return a date() format string to render identifiers for recurrence instances
+     *
+     * @param array Hash array with event properties
+     * @return string Format string
+     */
+    public static function recurrence_id_format($event)
+    {
+        return $event['allday'] ? 'Ymd' : 'Ymd\THis';
+    }
+
+    /**
+     * Return the identifer for the given instance of a recurring event
+     *
+     * @param array Hash array with event properties
+     * @return mixed Format string or null if identifier cannot be generated
+     */
+    public static function recurrence_instance_identifier($event)
+    {
+        $instance_date = $event['recurrence_date'] ?: $event['start'];
+
+        if ($instance_date && is_a($instance_date, 'DateTime')) {
+          $recurrence_id_format = $event['allday'] ? 'Ymd' : 'Ymd\THis';
+          return $instance_date->format($recurrence_id_format);
+        }
+
+        return null;
     }
 
 
@@ -1450,7 +1530,7 @@ class libcalendaring extends rcube_plugin
     /**
      * Convert the internal structured data into a vcalendar rrule 2.0 string
      */
-    public static function to_rrule($recurrence)
+    public static function to_rrule($recurrence, $allday = false)
     {
         if (is_string($recurrence))
             return $recurrence;
@@ -1462,21 +1542,30 @@ class libcalendaring extends rcube_plugin
             case 'UNTIL':
                 // convert to UTC according to RFC 5545
                 if (is_a($val, 'DateTime')) {
-                    $until = clone $val;
-                    $until->setTimezone(new DateTimeZone('UTC'));
-                    $val = $until->format('Ymd\THis\Z');
+                    if (!$allday && !$val->_dateonly) {
+                        $until = clone $val;
+                        $until->setTimezone(new DateTimeZone('UTC'));
+                        $val = $until->format('Ymd\THis\Z');
+                    }
+                    else {
+                        $val = $val->format('Ymd');
+                    }
                 }
                 break;
             case 'RDATE':
             case 'EXDATE':
-                foreach ((array)$val as $i => $ex)
-                    $val[$i] = $ex->format('Ymd\THis');
+                foreach ((array)$val as $i => $ex) {
+                    if (is_a($ex, 'DateTime'))
+                        $val[$i] = $ex->format('Ymd\THis');
+                }
                 $val = join(',', (array)$val);
                 break;
             case 'EXCEPTIONS':
                 continue 2;
             }
-            $rrule .= $k . '=' . $val . ';';
+
+            if (strlen($val))
+                $rrule .= $k . '=' . $val . ';';
         }
 
         return rtrim($rrule, ';');

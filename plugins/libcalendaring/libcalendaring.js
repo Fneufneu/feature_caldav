@@ -6,7 +6,7 @@
  * @licstart  The following is the entire license notice for the
  * JavaScript code in this page.
  *
- * Copyright (C) 2012-2014, Kolab Systems AG <contact@kolabsys.com>
+ * Copyright (C) 2012-2015, Kolab Systems AG <contact@kolabsys.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -959,13 +959,47 @@ rcube_libcalendaring.itip_delegate_dialog = function(callback, selector)
 };
 
 /**
+ * Show a menu for selecting the RSVP reply mode
+ */
+rcube_libcalendaring.itip_rsvp_recurring = function(btn, callback)
+{
+    var mnu = $('<ul></ul>').addClass('popupmenu libcal-rsvp-replymode');
+
+    $.each(['all','current'/*,'future'*/], function(i, mode) {
+        $('<li><a>' + rcmail.get_label('rsvpmode'+mode, 'libcalendaring') + '</a>')
+        .addClass('ui-menu-item')
+        .attr('rel', mode)
+        .appendTo(mnu);
+    });
+
+    var action = btn.attr('rel');
+
+    // open the mennu
+    mnu.menu({
+        select: function(event, ui) {
+            callback(action, ui.item.attr('rel'));
+        }
+    })
+    .appendTo(document.body)
+    .position({ my: 'left top', at: 'left bottom+2', of: btn })
+    .data('action', action);
+
+    setTimeout(function() {
+        $(document).one('click', function() {
+            mnu.menu('destroy');
+            mnu.remove();
+        });
+    }, 100);
+};
+
+/**
  *
  */
-rcube_libcalendaring.remove_from_itip = function(uid, task, title)
+rcube_libcalendaring.remove_from_itip = function(event, task, title)
 {
     if (confirm(rcmail.gettext('itip.deleteobjectconfirm').replace('$title', title))) {
         rcmail.http_post(task + '/itip-remove',
-            { uid: uid },
+            event,
             rcmail.set_busy(true, 'itip.savingdata')
         );
     }
@@ -1139,6 +1173,7 @@ window.rcmail && rcmail.addEventListener('init', function(evt) {
 
   $('.rsvp-buttons').on('click', 'a.reply-comment-toggle', function(e){
     $(this).hide().parent().find('textarea').show().focus();
+    return false;
   });
 
   if (rcmail.env.action == 'get-attachment' && rcmail.gui_objects['attachmentframe']) {

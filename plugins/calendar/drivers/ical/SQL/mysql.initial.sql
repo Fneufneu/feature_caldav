@@ -43,6 +43,8 @@ CREATE TABLE IF NOT EXISTS `ical_events` (
   `calendar_id` int(11) UNSIGNED NOT NULL DEFAULT '0',
   `recurrence_id` int(11) UNSIGNED NOT NULL DEFAULT '0',
   `uid` varchar(255) NOT NULL DEFAULT '',
+  `instance` varchar(16) NOT NULL DEFAULT '',
+  `isexception` tinyint(1) NOT NULL DEFAULT '0',
   `created` datetime NOT NULL DEFAULT '1000-01-01 00:00:00',
   `changed` datetime NOT NULL DEFAULT '1000-01-01 00:00:00',
   `sequence` int(1) UNSIGNED NOT NULL DEFAULT '0',
@@ -59,7 +61,7 @@ CREATE TABLE IF NOT EXISTS `ical_events` (
   `priority` tinyint(1) NOT NULL DEFAULT '0',
   `sensitivity` tinyint(1) NOT NULL DEFAULT '0',
   `status` varchar(32) NOT NULL DEFAULT '',
-  `alarms` varchar(255) DEFAULT NULL,
+  `alarms` text NULL DEFAULT NULL,
   `attendees` text DEFAULT NULL,
   `notifyat` datetime DEFAULT NULL,
 
@@ -86,4 +88,4 @@ CREATE TABLE IF NOT EXISTS `ical_attachments` (
   REFERENCES `events`(`event_id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) /*!40000 ENGINE=INNODB */ /*!40101 CHARACTER SET utf8 COLLATE utf8_general_ci */;
 
-REPLACE INTO `system` (`name`, `value`) VALUES ('calendar-ical-version', '2015032500');
+REPLACE INTO `system` (`name`, `value`) VALUES ('calendar-ical-version', '2015022700');

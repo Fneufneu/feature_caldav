@@ -43,9 +43,11 @@ window.rcmail && rcmail.addEventListener('init', function(evt) {
   var src, event_sources = [];
   var add_url = (rcmail.env.search ? '&q='+escape(rcmail.env.search) : '');
   for (var id in rcmail.env.calendars) {
-    var driver = rcmail.env.calendars[id].driver;
+    if (!rcmail.env.calendars[id].active)
+      continue;
+
     source = $.extend({
-      url: "./?_task=calendar&_action=load_events&driver=" + driver + "&source=" + escape(id) + add_url,
+      url: "./?_task=calendar&_action=load_events&source=" + escape(id) + add_url,
       className: 'fc-event-cal-'+id,
       id: id
     }, rcmail.env.calendars[id]);
@@ -126,7 +128,7 @@ window.rcmail && rcmail.addEventListener('init', function(evt) {
     },
     // event rendering
     eventRender: function(event, element, view) {
-      if (view.name != 'month') {
+      if (view.name != 'month' && view.name != 'table') {
         var cont = element.find('.fc-event-title');
         if (event.location) {
           cont.after('<div class="fc-event-location">@&nbsp;' + Q(event.location) + '</div>');

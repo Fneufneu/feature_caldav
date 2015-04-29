@@ -20,11 +20,15 @@ $labels['searchterms'] = 'Search terms';
 $labels['notasklistsfound'] = 'No tasklists found';
 $labels['nrtasklistsfound'] = '$nr tasklists found';
 $labels['removelist'] = 'Remove from list';
+$labels['showcaldavurl'] = 'Show CalDAV URL';
+$labels['caldavurldescription'] = 'Copy this address to a <a href="http://en.wikipedia.org/wiki/CalDAV" target="_blank">CalDAV</a> client application (e.g. Evolution or Mozilla Thunderbird) to synchronize this specific tasklist with your computer or mobile device.';
 
 $labels['newtask'] = 'New Task';
 $labels['createtask'] = 'Create Task <Enter>';
 $labels['createnewtask'] = 'Create new Task (e.g. Saturday, Mow the lawn)';
 $labels['createfrommail'] = 'Save as task';
+$labels['printtitle'] = 'Print tasks';
+$labels['printdescriptions'] = 'Print descriptions';
 $labels['mark'] = 'Mark';
 $labels['unmark'] = 'Unmark';
 $labels['edit'] = 'Edit';
@@ -46,6 +50,7 @@ $labels['status-cancelled'] = 'Cancelled';
 $labels['assignedto'] = 'Assigned to';
 $labels['created'] = 'Created';
 $labels['changed'] = 'Last Modified';
+$labels['taskoptions'] = 'Options';
 
 $labels['all'] = 'All';
 $labels['flagged'] = 'Flagged';
@@ -97,12 +102,15 @@ $labels['on'] = 'on';
 $labels['at'] = 'at';
 $labels['this'] = 'this';
 $labels['next'] = 'next';
+$labels['yes'] = 'yes';
 
 // messages
 $labels['savingdata'] = 'Saving data...';
 $labels['errorsaving'] = 'Failed to save data.';
 $labels['notasksfound'] = 'No tasks found for the given criteria';
 $labels['invalidstartduedates'] = 'Start date must not be greater than due date.';
+$labels['invalidstartduetimes'] = 'Start and due dates must either both or none specify a time.';
+$labels['recurrencerequiresdate'] = 'Recurring tasks require either a start or due date.';
 $labels['deletetasktconfirm'] = 'Do you really want to delete this task?';
 $labels['deleteparenttasktconfirm'] = 'Do you really want to delete this task and all its subtasks?';
 $labels['deletelistconfirm'] = 'Do you really want to delete this list with all its tasks?';
@@ -143,6 +151,23 @@ $labels['itipupdatemailbody'] = "*\$title*\n\nDue: \$date\n\nAssignees: \$attend
 $labels['itipcancelsubject'] = '"$title" has been canceled';
 $labels['itipcancelmailbody'] = "*\$title*\n\nDue: \$date\n\nAssignees: \$attendees\n\nThe task has been cancelled by \$organizer.\n\nPlease find attached an iCalendar file with the updated task details.";
 $labels['saveintasklist'] = 'save in ';
+
+// history dialog
+$labels['taskhistory'] = 'History';
+$labels['objectchangelog'] = 'Change History';
+$labels['objectdiff'] = 'Changes from $rev1 to $rev2';
+$labels['actionappend'] = 'Saved';
+$labels['actionmove'] = 'Moved';
+$labels['actiondelete'] = 'Deleted';
+$labels['compare'] = 'Compare';
+$labels['showrevision'] = 'Show this version';
+$labels['restore'] = 'Restore this version';
+$labels['objectnotfound'] = 'Failed to load task data';
+$labels['objectchangelognotavailable'] = 'Change history is not available for this task';
+$labels['objectdiffnotavailable'] = 'No comparison possible for the selected revisions';
+$labels['revisionrestoreconfirm'] = 'Do you really want to restore revision $rev of this task? This will replace the current task with the old version.';
+$labels['objectrestoresuccess'] = 'Revision $rev successfully restored';
+$labels['objectrestoreerror'] = 'Failed to restore the old revision';
 
 // invitation handling (overrides labels from libcalendaring)
 $labels['itipobjectnotfound'] = 'The task referred by this message was not found in your tasks list.';

@@ -5,7 +5,7 @@
  *
  * @author Thomas Bruederli <bruederli@kolabsys.com>
  *
- * Copyright (C) 2013, Kolab Systems AG <contact@kolabsys.com>
+ * Copyright (C) 2013-2015, Kolab Systems AG <contact@kolabsys.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -41,7 +41,7 @@ class libvcalendar implements Iterator
 {
     private $timezone;
     private $attach_uri = null;
-    private $prodid = '-//Roundcube//Roundcube libcalendaring//Sabre//Sabre VObject//EN';
+    private $prodid = '-//Roundcube libcalendaring//Sabre//Sabre VObject//EN';
     private $type_component_map = array('event' => 'VEVENT', 'task' => 'VTODO');
     private $attendee_keymap = array('name' => 'CN', 'status' => 'PARTSTAT', 'role' => 'ROLE',
         'cutype' => 'CUTYPE', 'rsvp' => 'RSVP', 'delegated-from' => 'DELEGATED-FROM', 'delegated-to' => 'DELEGATED-TO');
@@ -64,7 +64,7 @@ class libvcalendar implements Iterator
     function __construct($tz = null)
     {
         $this->timezone = $tz;
-        $this->prodid = '-//Roundcube//Roundcube libcalendaring ' . RCUBE_VERSION . '//Sabre//Sabre VObject ' . VObject\Version::VERSION . '//EN';
+        $this->prodid = '-//Roundcube libcalendaring ' . RCUBE_VERSION . '//Sabre//Sabre VObject ' . VObject\Version::VERSION . '//EN';
     }
 
     /**
@@ -305,6 +305,7 @@ class libvcalendar implements Iterator
     public function import_from_vobject($vobject)
     {
         $seen = array();
+        $exceptions = array();
 
         if ($vobject->name == 'VCALENDAR') {
             $this->method = strval($vobject->METHOD);
@@ -315,21 +316,39 @@ class libvcalendar implements Iterator
                     // convert to hash array representation
                     $object = $this->_to_array($ve);
 
-                    if (!$seen[$object['uid']]++) {
-                        // parse recurrence exceptions
-                        if ($object['recurrence']) {
-                            foreach ($vobject->children as $component) {
-                                if ($component->name == 'VEVENT' && isset($component->{'RECURRENCE-ID'})) {
-                                    $object['recurrence']['EXCEPTIONS'][] = $this->_to_array($component);
-                                }
-                            }
-                        }
-
+                    // temporarily store this as exception
+                    if ($object['recurrence_date']) {
+                        $exceptions[] = $object;
+                    }
+                    else if (!$seen[$object['uid']]++) {
                         $this->objects[] = $object;
                     }
                 }
                 else if ($ve->name == 'VFREEBUSY') {
                     $this->objects[] = $this->_parse_freebusy($ve);
+                }
+            }
+
+            // add exceptions to the according master events
+            foreach ($exceptions as $exception) {
+                $uid = $exception['uid'];
+
+                // make this exception the master
+                if (!$seen[$uid]++) {
+                    $this->objects[] = $exception;
+                }
+                else {
+                    foreach ($this->objects as $i => $object) {
+                        // add as exception to existing entry with a matching UID
+                        if ($object['uid'] == $uid) {
+                            $this->objects[$i]['exceptions'][] = $exception;
+
+                            if (!empty($object['recurrence'])) {
+                                $this->objects[$i]['recurrence']['EXCEPTIONS'] = &$this->objects[$i]['exceptions'];
+                            }
+                            break;
+                        }
+                    }
                 }
             }
         }
@@ -450,6 +469,9 @@ class libvcalendar implements Iterator
 
             case 'RECURRENCE-ID':
                 $event['recurrence_date'] = self::convert_datetime($prop);
+                if ($prop->offsetGet('RANGE') == 'THISANDFUTURE' || $prop->offsetGet('THISANDFUTURE') !== null) {
+                    $event['thisandfuture'] = true;
+                }
                 break;
 
             case 'RELATED-TO':
@@ -493,7 +515,7 @@ class libvcalendar implements Iterator
 
             case 'ATTENDEE':
             case 'ORGANIZER':
-                $params = array();
+                $params = array('rsvp' => false);
                 foreach ($prop->parameters as $param) {
                     switch ($param->name) {
                         case 'RSVP': $params[$param->name] = strtolower($param->value) == 'true'; break;
@@ -588,7 +610,7 @@ class libvcalendar implements Iterator
                             $alarm['trigger'] = $prop->getDateTime();
                         }
                     }
-                    if (!$trigger && ($values = libcalendaring::parse_alaram_value($prop->value))) {
+                    if (!$trigger && ($values = libcalendaring::parse_alarm_value($prop->value))) {
                         $trigger = $values[2];
                     }
 
@@ -886,11 +908,11 @@ class libvcalendar implements Iterator
                     continue;  // no timezone information found
                 }
 
-                if ($vcal) {
-                    $vcal->add($vt);
+                if ($write) {
+                    echo $vt->serialize();
                 }
                 else {
-                    echo $vt->serialize();
+                    $vcal->add($vt);
                 }
             }
         }
@@ -939,6 +961,13 @@ class libvcalendar implements Iterator
         if (!empty($event['due']))
             $ve->add($this->datetime_prop('DUE',   $event['due'], false));
 
+        // we're exporting a recurrence instance only
+        if (!$recurrence_id && $event['recurrence_date'] && $event['recurrence_date'] instanceof DateTime) {
+            $recurrence_id = $this->datetime_prop('RECURRENCE-ID', $event['recurrence_date'], false, (bool)$event['allday']);
+            if ($event['thisandfuture'])
+                $recurrence_id->add('RANGE', 'THISANDFUTURE');
+        }
+
         if ($recurrence_id)
             $ve->add($recurrence_id);
 
@@ -953,19 +982,22 @@ class libvcalendar implements Iterator
             $ve->add('SEQUENCE', $event['sequence']);
 
         if ($event['recurrence'] && !$recurrence_id) {
-            if ($exdates = $event['recurrence']['EXDATE']) {
+            $exdates = $rdates = null;
+            if (isset($event['recurrence']['EXDATE'])) {
+                $exdates = $event['recurrence']['EXDATE'];
                 unset($event['recurrence']['EXDATE']);  // don't serialize EXDATEs into RRULE value
             }
-            if ($rdates = $event['recurrence']['RDATE']) {
+            if (isset($event['recurrence']['RDATE'])) {
+                $rdates = $event['recurrence']['RDATE'];
                 unset($event['recurrence']['RDATE']);  // don't serialize RDATEs into RRULE value
             }
 
             if ($event['recurrence']['FREQ']) {
-                $ve->add('RRULE', libcalendaring::to_rrule($event['recurrence']));
+                $ve->add('RRULE', libcalendaring::to_rrule($event['recurrence'], (bool)$event['allday']));
             }
 
             // add EXDATEs each one per line (for Thunderbird Lightning)
-            if ($exdates) {
+            if (is_array($exdates)) {
                 foreach ($exdates as $ex) {
                     if ($ex instanceof \DateTime) {
                         $exd = clone $event['start'];
@@ -976,7 +1008,7 @@ class libvcalendar implements Iterator
                 }
             }
             // add RDATEs
-            if (!empty($rdates)) {
+            if (is_array($rdates) && !empty($rdates)) {
                 $sample = $this->datetime_prop('RDATE', $rdates[0]);
                 $rdprop = new VObject\Property\MultiDateTime('RDATE', null);
                 $rdprop->setDateTimes($rdates, $sample->getDateType());
@@ -1057,7 +1089,7 @@ class libvcalendar implements Iterator
         else if ($event['alarms']) {
             $va = VObject\Component::create('VALARM');
             list($trigger, $va->action) = explode(':', $event['alarms']);
-            $val = libcalendaring::parse_alaram_value($trigger);
+            $val = libcalendaring::parse_alarm_value($trigger);
             if ($val[3])
                 $va->add('TRIGGER', $val[3]);
             else if ($val[0] instanceof DateTime)
@@ -1072,7 +1104,7 @@ class libvcalendar implements Iterator
             }
             else if (!empty($attendee['email'])) {
                 if (isset($attendee['rsvp']))
-                    $attendee['rsvp'] = $attendee['rsvp'] ? 'TRUE' : 'FALSE';
+                    $attendee['rsvp'] = $attendee['rsvp'] ? 'TRUE' : null;
                 $ve->add('ATTENDEE', 'mailto:' . $attendee['email'], array_filter(self::map_keys($attendee, $this->attendee_keymap)));
             }
         }
@@ -1146,11 +1178,10 @@ class libvcalendar implements Iterator
         // append recurrence exceptions
         if (is_array($event['recurrence']) && $event['recurrence']['EXCEPTIONS']) {
             foreach ($event['recurrence']['EXCEPTIONS'] as $ex) {
-                $exdate = clone $event['start'];
-                $exdate->setDate($ex['start']->format('Y'), $ex['start']->format('n'), $ex['start']->format('j'));
-                $recurrence_id = $this->datetime_prop('RECURRENCE-ID', $exdate, true);
-                // if ($ex['thisandfuture'])  // not supported by any client :-(
-                //    $recurrence_id->add('RANGE', 'THISANDFUTURE');
+                $exdate = $ex['recurrence_date'] ?: $ex['start'];
+                $recurrence_id = $this->datetime_prop('RECURRENCE-ID', $exdate, false, (bool)$event['allday']);
+                if ($ex['thisandfuture'])
+                    $recurrence_id->add('RANGE', 'THISANDFUTURE');
                 $this->_to_ical($ex, $vcal, $get_attachment, $recurrence_id);
             }
         }
