@@ -355,6 +355,22 @@ class calendar extends rcube_plugin
   }
 
   /**
+   * Return the driver for the given event.
+   *
+   * @param $id ID or UID of the event.
+   * @return mixed Returns the driver object or null if no driver could be found for this event.
+   */
+  public function get_driver_by_event($id)
+  {
+    foreach($this->get_drivers() as $driver) {
+      if($driver->get_event($id))
+        return $driver;
+    }
+
+    return null;
+  }
+
+  /**
    * Get driver for given calendar id.
    * @param int Calendar id to get driver for.
    * @return mixed Driver object for given calendar.
@@ -2535,12 +2551,19 @@ class calendar extends rcube_plugin
    */
   function event_itip_status()
   {
-    $driver = $this->get_driver_by_gpc();
     $data = rcube_utils::get_input_value('data', rcube_utils::INPUT_POST, true);
 
     // find local copy of the referenced event
-    $this->load_driver();
-    $existing = $driver->get_event($data, true, false, true);
+    $existing = null;
+    $driver = null;
+    if(isset($data["uid"])) {
+      $existing = (($driver = $this->get_driver_by_event($data["uid"])) !== null);
+    }
+
+    if(!$driver == null) {
+      $driver = $this->get_default_driver();
+      $existing = $driver->get_event($data, true, false, true);
+    }
 
     $itip = $this->load_itip();
     $response = $itip->get_itip_status($data, $existing);
