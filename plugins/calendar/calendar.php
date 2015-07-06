@@ -3055,10 +3055,25 @@ class calendar extends rcube_plugin
 
       // find writeable calendar to store event
       $cal_id = !empty($_REQUEST['_folder']) ? rcube_utils::get_input_value('_folder', rcube_utils::INPUT_POST) : null;
-      $driver = $this->get_driver_by_cal($cal_id);
+
+      $calendar = null;
+      $driver = null;
+
+      if($cal_id) {
+        $driver = $this->get_driver_by_cal($cal_id);
+        $calendars = $driver->list_calendars(false, true);
+        $calendar = $calendars[$cal_id];
+      }
+
       $dontsave = ($_REQUEST['_folder'] === '' && $event['_method'] == 'REQUEST');
-      $calendars = $driver->list_calendars(calendar_driver::FILTER_PERSONAL);
-      $calendar = $calendars[$cal_id];
+
+      // select default calendar except user explicitly selected 'none'
+      if (!$calendar && !$dontsave)
+        $calendar = $this->get_default_calendar(true, $event['sensitivity'] == 'confidential');
+
+      if(!$driver) {
+        $driver = $this->get_driver_by_cal($calendar["id"]);
+      }
 
       // select default calendar except user explicitly selected 'none'
       if (!$calendar && !$dontsave)
