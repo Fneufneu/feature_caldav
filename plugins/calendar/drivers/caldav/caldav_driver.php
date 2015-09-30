@@ -1788,11 +1788,11 @@ class caldav_driver extends calendar_driver
         $cal_attribs = array('{DAV:}resourcetype', '{DAV:}displayname');
 
         require_once ($this->cal->home.'/lib/caldav-client.php');
-        $caldav = new caldav_client($props["url"], $props["caldav_user"], $props["caldav_pass"]);
+        $caldav = new caldav_client($props["caldav_url"], $props["caldav_user"], $props["caldav_pass"]);
 
-        $tokens = parse_url($props["url"]);
+        $tokens = parse_url($props["caldav_url"]);
         $base_uri = $tokens['scheme']."://".$tokens['host'].($tokens['port'] ? ":".$tokens['port'] : null);
-        $caldav_url = $props["url"];
+        $caldav_url = $props["caldav_url"];
         $response = $caldav->prop_find($caldav_url, array_merge($current_user_principal,$cal_attribs), 0);
         if (!$response) {
             $this->_raise_error("Resource \"$caldav_url\" has no collections");
