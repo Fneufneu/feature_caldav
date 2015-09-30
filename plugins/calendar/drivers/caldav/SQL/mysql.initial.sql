@@ -75,7 +75,7 @@ CREATE TABLE IF NOT EXISTS `caldav_events` (
   INDEX `caldav_recurrence_idx` (`recurrence_id`),
   INDEX `caldav_calendar_notify_idx` (`calendar_id`,`notifyat`),
   CONSTRAINT `fk_caldav_events_calendar_id` FOREIGN KEY (`calendar_id`)
-  REFERENCES `calendars`(`calendar_id`) ON DELETE CASCADE ON UPDATE CASCADE
+  REFERENCES `caldav_calendars`(`calendar_id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) /*!40000 ENGINE=INNODB */ /*!40101 CHARACTER SET utf8 COLLATE utf8_general_ci */;
 
 CREATE TABLE IF NOT EXISTS `caldav_attachments` (
@@ -87,6 +87,6 @@ CREATE TABLE IF NOT EXISTS `caldav_attachments` (
   `data` longtext NOT NULL,
   PRIMARY KEY(`attachment_id`),
   CONSTRAINT `fk_caldav_attachments_event_id` FOREIGN KEY (`event_id`)
-  REFERENCES `events`(`event_id`) ON DELETE CASCADE ON UPDATE CASCADE
+  REFERENCES `caldav_events`(`event_id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) /*!40000 ENGINE=INNODB */ /*!40101 CHARACTER SET utf8 COLLATE utf8_general_ci */;
 REPLACE INTO `system` (`name`, `value`) VALUES ('calendar-caldav-version', '2015022700');
