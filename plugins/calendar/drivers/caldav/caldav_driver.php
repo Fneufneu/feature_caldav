@@ -147,12 +147,6 @@ class caldav_driver extends calendar_driver
      */
     public function list_calendars($filter = 0)
     {
-        // attempt to create a default calendar for this user
-        if (empty($this->calendars)) {
-            if ($this->create_calendar(array('name' => 'Default', 'color' => 'cc0000', 'showalarms' => true)))
-                $this->_read_calendars();
-        }
-
         $calendars = $this->calendars;
 
         // filter active calendars

@@ -24,7 +24,8 @@ For example if `roundcubemail-plugins-kolab-3.1.13` is installed, you must check
     ```bash
     $ cd /path/to/your/roundcube/    
     $ mv plugins/calendar plugins/calendar.orig
-    $ ln -s plugins-caldav/plugins/calendar plugins/calendar
+    $ cd plugins
+    $ ln -s ../plugins-caldav/plugins/calendar
     ```
 
     If you use Roundcubemail without Kolab, you should put all plugins from the `feature_caldav` branch into your plugins folder. Please note that this is only rarely tested and we won't offer any support for this right now.
