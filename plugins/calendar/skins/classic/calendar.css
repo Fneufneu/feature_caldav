@@ -1755,3 +1755,6 @@ div.calendar-invitebox .calendar-agenda-preview .event-date {
 	font-size: 120%;
 }
 
+.calendar-input input[type=text] {
+	width: 97%;
+}

@@ -310,6 +310,10 @@ $labels['arialabelresourceselection'] = 'Available resources';
 $labels['calendar_kolab'] = 'Kolab Calender';
 $labels['calendar_caldav'] = 'CalDAV Calender';
 $labels['calendar_ical'] = 'iCAL Calender';
-$labels['caldavurl'] = "CalDAV URL";
-$labels['icalurl'] = "iCal URL";
+
+$labels['caldav_url'] = "CalDAV URL";
+$labels["caldav_auth"] = "CalDAV Credentials";
+
+$labels['ical_url'] = "iCal URL";
+$labels['ical_auth'] = "iCal Credentials";
 ?>

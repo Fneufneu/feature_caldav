@@ -2325,3 +2325,7 @@ div.calendar-invitebox .calendar-agenda-preview .event-date {
 	margin-left: 2px;
 }
 
+.calendar-input input[type=text],
+.calendar-input input[type=password]{
+	width: 97%;
+}
