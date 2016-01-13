@@ -171,6 +171,23 @@ $config['calendar_crypt_key'] = "put some random string here";
 $config['calendar_caldav_debug'] = false;
 $config['calendar_ical_debug'] = false;
 
+// OAuth2 provider for CalDAV auth
+$config['calendar_oauth2_provider'] = array(
+
+//    "key" => array(
+//        "name" => "Google OAuth2 Provider",
+//        "json" => "/path/to/client_id.json"
+//    ),
+
+//    "key2" => array(
+//        "name" => "My Custom OAuth2 Provider",
+//        "client_id" => "",
+//        "client_secret" => "",
+//        "authorize_endpoint" => "",
+//        "token_endpoint" => "",
+//    )
+);
+
 // Pre-installed calendars, added at first access to calendar section
 // Caldav driver is supported only
 // $config['calendar_preinstalled_calendars'] = array(

@@ -278,10 +278,16 @@ $labels['arialabelresourceselection'] = 'Verfügbare Ressourcen';
 $labels['calendar_kolab'] = 'Kolab Kalender';
 $labels['calendar_caldav'] = 'CalDAV Kalender';
 $labels['calendar_ical'] = 'iCAL Kalender';
+$labels['calendar_google'] = 'Google Calender';
 
 $labels['caldav_url'] = "CalDAV URL";
-$labels["caldav_auth"] = "CalDAV Login";
+$labels["caldav_auth_digest"] = "CalDAV Digest Login";
+$labels["caldav_auth_oauth2"] = "CalDAV OAuth2 Login";
 
 $labels['ical_url'] = "iCal URL";
-$labels['ical_auth'] = "iCal Login";
+$labels['ical_auth_digest'] = "iCal Basic Auth Login";
+
+$labels['auth'] = "Authentifizierung";
+$labels['login_with'] = "Anmelden mit ";
+$labels['logout_from'] = "Abmelden von ";
 ?>

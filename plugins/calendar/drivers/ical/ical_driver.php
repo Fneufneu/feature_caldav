@@ -1655,7 +1655,7 @@ class ical_driver extends calendar_driver
         );
 
         $form['props']['fieldsets']['auth'] = array(
-            'name' => $this->cal->gettext('ical_auth'),
+            'name' => $this->cal->gettext('ical_auth_digest'),
             'content' => array(
                 'ical_user' => $formfields["ical_user"],
                 'ical_pass' => $formfields["ical_pass"]

@@ -51,6 +51,8 @@ class caldav_driver extends calendar_driver
     private $db_calendars = 'caldav_calendars';
     private $db_attachments = 'caldav_attachments';
 
+    private $oauth2_providers = array();
+
     // Crypt key for CalDAV auth
     private $crypt_key;
 
@@ -97,6 +99,9 @@ class caldav_driver extends calendar_driver
         $this->db_attachments = $this->rc->config->get('db_table_caldav_attachments', $db->table_name($this->db_attachments));
         $this->crypt_key = $this->rc->config->get("calendar_crypt_key", "%E`c{2;<J2F^4_&._BxfQ<5Pf3qv!m{e");
 
+        // Get oauth2 providers
+        $this->oauth2_providers = $this->rc->config->get('calendar_oauth2_provider', $this->oauth2_providers);
+
         // Set debug state
         if(self::$debug === null)
             self::$debug = $this->rc->config->get('calendar_caldav_debug', False);
@@ -127,6 +132,8 @@ class caldav_driver extends calendar_driver
                 $arr['rights'] = 'lrswikxteav';
                 $arr['editable'] = true;
                 $arr['caldav_pass'] = $this->_decrypt_pass($arr['caldav_pass']);
+                $arr['caldav_oauth2_provider'] = html::quote($arr['caldav_oauth2_provider']);
+                $arr['caldav_oauth2_token'] = $this->_decrypt_pass($arr['caldav_oauth2_token']);
                 $this->calendars[$arr['calendar_id']] = $arr;
                 $calendar_ids[] = $this->rc->db->quote($arr['calendar_id']);
 
@@ -217,12 +224,14 @@ class caldav_driver extends calendar_driver
      * Create a new calendar assigned to the current user
      *
      * @param array Hash array with calendar properties
-     *        name: Calendar name
-     *       color: The color of the calendar
-     *  caldav_url: CalDAV calendar URL
-     *  caldav_tag: CalDAV calendar ctag
-     * caldav_user: CalDAV authentication user
-     * caldav_pass: CalDAV authentication password
+     *                   name: Calendar name
+     *                  color: The color of the calendar
+     *             caldav_url: CalDAV calendar URL
+     *             caldav_tag: CalDAV calendar ctag
+     *            caldav_user: CalDAV authentication user
+     *            caldav_pass: CalDAV authentication password
+     * caldav_oauth2_provider: Unique config ID for OAuth2 provider, see config.inc.php
+     *    caldav_oauth2_token: OAuth2 access token if authenticated
      *
      * @return mixed ID of the calendar on success, False on error
      */
@@ -230,7 +239,7 @@ class caldav_driver extends calendar_driver
     {
         $result = $this->rc->db->query(
             "INSERT INTO " . $this->db_calendars . "
-       (user_id, name, color, showalarms, caldav_url, caldav_tag, caldav_user, caldav_pass)
+       (user_id, name, color, showalarms, caldav_url, caldav_tag, caldav_user, caldav_pass, caldav_oauth2_provider, caldav_oauth2_token)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             $this->rc->user->ID,
             $prop['name'],
@@ -239,7 +248,9 @@ class caldav_driver extends calendar_driver
             $prop['caldav_url'],
             isset($props["caldav_tag"]) ? $props["caldav_tag"] : null,
             isset($props["caldav_user"]) ? $props["caldav_user"] : null,
-            isset($props["caldav_pass"]) ? $this->_encrypt_pass($props["caldav_pass"]) : null
+            isset($props["caldav_pass"]) ? $this->_encrypt_pass($props["caldav_pass"]) : null,
+            isset($props["caldav_oauth2_provider"]) ? $props["caldav_oauth2_provider"] : null,
+            isset($props["caldav_oauth2_token"]) ? $this->_encrypt_pass($props["caldav_oauth2_token"]) : null
         );
 
         if ($result)
@@ -256,7 +267,7 @@ class caldav_driver extends calendar_driver
     public function edit_calendar($cal)
     {
         $query = $this->rc->db->query("UPDATE " . $this->db_calendars . "
-            SET   name=?, color=?, showalarms=?, caldav_url=?, caldav_tag=?, caldav_user=?
+            SET   name=?, color=?, showalarms=?, caldav_url=?, caldav_tag=?, caldav_user=?, caldav_oauth2_provider=?
             WHERE calendar_id=?
             AND   user_id=?",
             $cal['name'],
@@ -265,6 +276,7 @@ class caldav_driver extends calendar_driver
             $cal['caldav_url'],
             isset($cal["caldav_tag"]) ? $cal["caldav_tag"] : null,
             isset($cal["caldav_user"]) ? $cal["caldav_user"] : null,
+            isset($cal["caldav_oauth2_provider"]) ? $cal["caldav_oauth2_provider"] : null,
             $cal['id'],
             $this->rc->user->ID
         );
@@ -276,6 +288,18 @@ class caldav_driver extends calendar_driver
             WHERE calendar_id=?
             AND   user_id=?",
                 $this->_encrypt_pass($cal['caldav_pass']),
+                $cal['id'],
+                $this->rc->user->ID
+            );
+        }
+
+        // Change oauth2 token if specified
+        if (isset($cal["caldav_oauth2_token"])) {
+            $query = $this->rc->db->query("UPDATE " . $this->db_calendars . "
+            SET   caldav_oauth2_token=?
+            WHERE calendar_id=?
+            AND   user_id=?",
+                $this->_encrypt_pass($cal['caldav_oauth2_token']),
                 $cal['id'],
                 $this->rc->user->ID
             );
@@ -1691,8 +1715,8 @@ class caldav_driver extends calendar_driver
 
         $form = array();
 
-        // TODO: E.g. store access token
-        $hidden_fields[] = array("name" => "oldname", "value" => "");
+        $hidden_fields[] = array("name" => "caldav_oauth2_token",
+                                 "value" => ""); // Don't send plain text oauth2 token to GUI
 
         // General tab
         $form['props'] = array(
@@ -1730,6 +1754,10 @@ class caldav_driver extends calendar_driver
         );
 
         // caldav auth properties
+        $form['auth'] = array(
+            'name' => $this->cal->gettext('auth'),
+        );
+
         $input_caldav_user = new html_inputfield( array(
             "name" => "caldav_user",
             "id" => "caldav_user",
@@ -1752,12 +1780,48 @@ class caldav_driver extends calendar_driver
             "id" => "caldav_pass",
         );
 
-        $form['props']['fieldsets']['auth'] = array(
-            'name' => $this->cal->gettext('caldav_auth'),
+        $form['auth']['fieldsets']['caldav_auth_digest'] = array(
+            'name' => $this->cal->gettext('caldav_auth_digest'),
             'content' => array(
                 'caldav_user' => $formfields["caldav_user"],
                 'caldav_pass' => $formfields["caldav_pass"]
             )
+        );
+
+        // TODO: oauth2 example: https://github.com/fkooman/php-oauth-client/tree/master/example/gdrive
+
+        $oauth2_buttons = array();
+        if(empty($calendar["caldav_oauth2_token"])) {
+            foreach ( $this->oauth2_providers as $id => $provider ) {
+
+                $login = new html_inputfield( array(
+                    "type"    => "button",
+                    "class"   => "button " . $id,
+                    "onclick" => "", // TODO: Do s.th.
+                    "value"   => $this->cal->gettext("login_with").$provider["name"]
+                ) );
+
+                array_push( $oauth2_buttons, $login->show() );
+            }
+        }
+        else {
+
+            $provider_name = $calendar["caldav_oauth2_provider"];
+            if(isset($this->oauth2_providers[$provider_name])) // Try to get configured provider name (if config still exists)
+                $provider_name = $provider_name["name"];
+
+            array_push($oauth2_buttons, new html_inputfield(array(
+                "type" => "button",
+                "class" => "button",
+                "onclick" => "", // TODO: Do s.th.
+                "value" => $this->cal->gettext("logout_from").$provider_name
+            )));
+        }
+
+
+        $form['auth']['fieldsets']['caldav_auth_oauth2'] = array(
+            'name'    => $this->cal->gettext('caldav_auth_oauth2'),
+            'content' => implode( "", $oauth2_buttons)
         );
 
         $this->form_html = '';
