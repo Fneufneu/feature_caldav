@@ -1689,22 +1689,50 @@ class caldav_driver extends calendar_driver
         // Make sure we have current attributes
         $calendar = $this->calendars[$calendar["id"]];
 
+        $form = array();
+
+        // TODO: E.g. store access token
+        $hidden_fields[] = array("name" => "oldname", "value" => "");
+
+        // General tab
+        $form['props'] = array(
+            'name' => $this->rc->gettext('properties'),
+        );
+
+        // calendar name (default field) and caldav url
         $input_caldav_url = new html_inputfield( array(
             "name" => "caldav_url",
             "id" => "caldav_url",
-            "size" => 20
         ));
 
         $formfields["caldav_url"] = array(
-            "label" => $this->cal->gettext("caldavurl"),
+            "label" => $this->cal->gettext("caldav_url"),
             "value" => $input_caldav_url->show($calendar["caldav_url"]),
             "id" => "caldav_url",
         );
 
+        $form['props']['fieldsets']['location'] = array(
+            'name'  => $this->rc->gettext('location'),
+            'content' => array(
+                'name' => $formfields['name'],
+                'caldav_url' => $formfields['caldav_url']
+            ),
+        );
+
+        // calendar color, alarms (default field)
+        $form['props']['fieldsets']['settings'] = array(
+            'name'  => $this->rc->gettext('settings'),
+            'style' => "table",
+            'content' => array(
+                'color' => $formfields['color'],
+                'showalarms' => $formfields['showalarms'],
+            ),
+        );
+
+        // caldav auth properties
         $input_caldav_user = new html_inputfield( array(
             "name" => "caldav_user",
             "id" => "caldav_user",
-            "size" => 20
         ));
 
         $formfields["caldav_user"] = array(
@@ -1716,7 +1744,6 @@ class caldav_driver extends calendar_driver
         $input_caldav_pass = new html_passwordfield( array(
             "name" => "caldav_pass",
             "id" => "caldav_pass",
-            "size" => 20
         ));
 
         $formfields["caldav_pass"] = array(
@@ -1725,7 +1752,93 @@ class caldav_driver extends calendar_driver
             "id" => "caldav_pass",
         );
 
-        return parent::calendar_form($action, $calendar, $formfields);
+        $form['props']['fieldsets']['auth'] = array(
+            'name' => $this->cal->gettext('caldav_auth'),
+            'content' => array(
+                'caldav_user' => $formfields["caldav_user"],
+                'caldav_pass' => $formfields["caldav_pass"]
+            )
+        );
+
+        $this->form_html = '';
+        if (is_array($hidden_fields)) {
+            foreach ($hidden_fields as $field) {
+                $hiddenfield = new html_hiddenfield($field);
+                $this->form_html .= $hiddenfield->show() . "\n";
+            }
+        }
+
+        // Create form output
+        foreach ($form as $tab) {
+            if (!empty($tab['fieldsets']) && is_array($tab['fieldsets'])) {
+                $content = '';
+                foreach ($tab['fieldsets'] as $fieldset) {
+                    $subcontent = $this->get_form_part($fieldset);
+                    if ($subcontent) {
+                        $content .= html::tag('fieldset', null, html::tag('legend', null, Q($fieldset['name'])) . $subcontent) ."\n";
+                    }
+                }
+            }
+            else {
+                $content = $this->get_form_part($tab);
+            }
+
+            if ($content) {
+                $this->form_html .= html::tag('fieldset', null, html::tag('legend', null, Q($tab['name'])) . $content) ."\n";
+            }
+        }
+
+        // Parse form template for skin-dependent stuff
+        $this->rc->output->add_handler('calendarform', array($this, 'calendar_form_html'));
+        return $this->rc->output->parse('calendar.kolabform', false, false);
+    }
+
+    /**
+     * Handler for template object
+     */
+    public function calendar_form_html()
+    {
+        return $this->form_html;
+    }
+
+    /**
+     * Helper function used in calendar_form_content(). Creates a part of the form.
+     */
+    private function get_form_part($form)
+    {
+        $content = '';
+
+        if ( is_array( $form['content'] ) && ! empty( $form['content'] ) )
+        {
+            if(isset($form["style"]) && $form["style"] == "table")
+            {
+                $table = new html_table(array('cols' => 2));
+                foreach ($form['content'] as $col => $colprop) {
+                    $label = !empty($colprop['label']) ? $colprop['label'] : rcube_label($col);
+
+                    $table->add('title', html::label($colprop['id'], Q($label)));
+                    $table->add(null, $colprop['value']);
+                }
+                $content = $table->show();
+            }
+            else
+            {
+                foreach ( $form['content'] as $col => $colprop ) {
+                    $label = ! empty( $colprop['label'] ) ? $colprop['label'] : rcube_label( $col );
+                    $content .=
+                        html::div("calendar-input",
+                            html::label( $colprop['id'], Q( $label ) ) .
+                            html::br() .
+                            $colprop['value'] );
+                }
+            }
+        }
+        else
+        {
+            $content = $form['content'];
+        }
+
+        return $content;
     }
 
     /**
