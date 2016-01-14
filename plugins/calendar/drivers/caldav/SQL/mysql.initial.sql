@@ -31,8 +31,7 @@ CREATE TABLE IF NOT EXISTS `caldav_calendars` (
   `caldav_tag` varchar(255) DEFAULT NULL,
   `caldav_user` varchar(255) DEFAULT NULL,
   `caldav_pass` varchar(1024) DEFAULT NULL,
-  `caldav_oauth2_provider` varchar(255) DEFAULT NULL,
-  `caldav_oauth2_token` varchar(1024) DEFAULT NULL,
+  `caldav_oauth_provider` varchar(255) DEFAULT NULL,
   `caldav_last_change` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
   PRIMARY KEY(`calendar_id`),
@@ -91,4 +90,5 @@ CREATE TABLE IF NOT EXISTS `caldav_attachments` (
   CONSTRAINT `fk_caldav_attachments_event_id` FOREIGN KEY (`event_id`)
   REFERENCES `caldav_events`(`event_id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) /*!40000 ENGINE=INNODB */ /*!40101 CHARACTER SET utf8 COLLATE utf8_general_ci */;
+
 REPLACE INTO `system` (`name`, `value`) VALUES ('calendar-caldav-version', '2016011300');

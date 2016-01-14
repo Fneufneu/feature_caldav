@@ -172,15 +172,17 @@ $config['calendar_caldav_debug'] = false;
 $config['calendar_ical_debug'] = false;
 
 // OAuth2 provider for CalDAV auth
-$config['calendar_oauth2_provider'] = array(
+$config['calendar_oauth_providers'] = array(
 
 //    "key" => array(
 //        "name" => "Google OAuth2 Provider",
+//        "scope" => "https://www.googleapis.com/auth/calendar",
 //        "json" => "/path/to/client_id.json"
 //    ),
 
 //    "key2" => array(
 //        "name" => "My Custom OAuth2 Provider",
+//        "scope" => "",
 //        "client_id" => "",
 //        "client_secret" => "",
 //        "authorize_endpoint" => "",

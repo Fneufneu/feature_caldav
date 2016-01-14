@@ -1,2 +1,1 @@
-ALTER TABLE `caldav_calendars` ADD `caldav_oauth2_provider` varchar(255) DEFAULT NULL AFTER `caldav_pass`;
-ALTER TABLE `caldav_calendars` ADD `caldav_oauth2_token` varchar(1024) DEFAULT NULL AFTER `caldav_oauth2_provider`;
+ALTER TABLE `caldav_calendars` ADD `caldav_oauth_provider` varchar(255) DEFAULT NULL AFTER `caldav_pass`;
