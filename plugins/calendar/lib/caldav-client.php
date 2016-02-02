@@ -201,7 +201,7 @@ class caldav_client extends Sabre\DAV\Client
         foreach ($properties as $property)
         {
 
-            list($namespace, $elementName) = Sabre\DAV\XMLUtil::parseClarkNotation($property);
+            list($namespace, $elementName) = Sabre\Xml\Service::parseClarkNotation($property);
 
             if ($namespace === 'DAV:')
             {
