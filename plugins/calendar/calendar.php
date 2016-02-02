@@ -179,7 +179,7 @@ class calendar extends rcube_plugin
           foreach ($this->get_drivers() as $driver_name => $driver) {
               foreach ($preinstalled_calendars as $cal) {
                   if ($driver_name == $cal['driver']) {    
-                      if (!$driver->insert_default_calendar($cal)) {
+                      if (!$driver->create_calendar($cal)) {
                           $error_msg = 'Unable to add default calendars' . ($driver && $driver->last_error ? ': ' . $driver->last_error :'');
                           $this->rc->output->show_message($error_msg, 'error');
                       }
