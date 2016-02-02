@@ -91,6 +91,15 @@ class caldav_client extends Sabre\DAV\Client
                 'message' => $err->getMessage()
             ), true, false);
         }
+        catch(Sabre\HTTP\ClientHttpException $err)
+        {
+            rcube::raise_error(array(
+                'type' => 'DAV',
+                'file' => $err->getFile(),
+                'line' => $err->getLine(),
+                'message' => $err->getMessage()
+            ), true, false);
+        }
 
         return null;
     }
