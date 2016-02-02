@@ -241,10 +241,10 @@ class caldav_driver extends calendar_driver
             $prop['color'],
             $prop['showalarms']?1:0,
             $prop['caldav_url'],
-            isset($props["caldav_tag"]) ? $props["caldav_tag"] : null,
-            isset($props["caldav_user"]) ? $props["caldav_user"] : null,
-            isset($props["caldav_pass"]) ? $this->_encrypt_pass($props["caldav_pass"]) : null,
-            isset($props["caldav_oauth_provider"]) ? $props["caldav_oauth_provider"] : null
+            isset($prop["caldav_tag"]) ? $prop["caldav_tag"] : null,
+            isset($prop["caldav_user"]) ? $prop["caldav_user"] : null,
+            isset($prop["caldav_pass"]) ? $this->_encrypt_pass($prop["caldav_pass"]) : null,
+            isset($prop["caldav_oauth_provider"]) ? $prop["caldav_oauth_provider"] : null
         );
 
         if ($result)
