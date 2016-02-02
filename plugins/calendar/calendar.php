@@ -2710,7 +2710,7 @@ class calendar extends rcube_plugin
     if(isset($data["uid"]))
       $driver = $this->get_driver_by_event($data["uid"]);
 
-    if(!$driver == null)
+    if($driver == null)
       $driver = $this->get_default_driver();
 
     $existing = $driver->get_event($data, calendar_driver::FILTER_WRITEABLE | calendar_driver::FILTER_PERSONAL);
