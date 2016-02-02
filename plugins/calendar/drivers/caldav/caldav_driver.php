@@ -1943,7 +1943,7 @@ class caldav_driver extends calendar_driver
             return false;
         }
         else if (array_key_exists ('{DAV:}resourcetype', $response) &&
-            $response['{DAV:}resourcetype'] instanceof Sabre\DAV\Property\ResourceType &&
+            $response['{DAV:}resourcetype'] instanceof Sabre\DAV\Xml\Property\ResourceType &&
             in_array('{urn:ietf:params:xml:ns:caldav}calendar',
                 $response['{DAV:}resourcetype']->getValue())) {
 
